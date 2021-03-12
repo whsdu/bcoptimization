@@ -3,6 +3,8 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module ASPIC.Defeasible
     ( Literal (..)
@@ -14,6 +16,11 @@ module ASPIC.Defeasible
     , Rules(..)
     , LogicLanguage(..)
     , Board(..)
+    , SearchRecord
+    , SearchRecords
+    , PathRecord
+    , PathRecords
+    , Defeater(..)
     -- , LiteralMap
     -- , StrictRules (..)
     -- , DefeasibleRules(..)
@@ -41,8 +48,8 @@ import qualified GHC.List as GHC (head)
 -- data Statement a = Statement a | Deduction
 
 data Literal a where
-    Atom :: (Show a) =>  Name -> a -> Literal a
-    Rule ::  (Show a) => Name -> [Literal a] -> Imp -> Literal a-> Literal a 
+    Atom :: (Show a, Eq a) =>  Name -> a -> Literal a
+    Rule ::  (Show a, Eq a) => Name -> [Literal a] -> Imp -> Literal a-> Literal a 
 
 instance (Show a) => Show (Literal a) where
     show (Rule n b i h) = n ++ ": " ++ bs ++ im ++ head
@@ -52,6 +59,17 @@ instance (Show a) => Show (Literal a) where
             head = name h
     show (Atom n _) = n
 
+instance (Eq a) => Eq (Literal a) where
+    (Atom n1 a1) == (Atom n2 a2) = (n1 == n2) && (a1 ==a2) 
+    (Rule n1 body1 imp1 h1) == (Rule n2 body2 imp2 h2) = 
+        let 
+            nameEq  = n1 == n2 
+            bodyEq  = (length body1 == length body2)
+            impEq   = imp1 == imp2 
+            headEq  = h1 == h2 
+        in nameEq && bodyEq && impEq && headEq 
+
+
 -- instance Applicative Literal where 
 --     pure = Atom ""
 --     (Atom _ f) <*> (Atom n a) = Atom n (f a)
@@ -60,62 +78,56 @@ instance (Show a) => Show (Literal a) where
 
 -- A set of rules 
 -- [r1,r2,r3,r4]
-data Language  = forall a . Show a => Language [Literal a]
+type Language a = [Literal a] 
 
-instance Show Language where 
-    show (Language l) = show l 
+newtype Rules a = Rules {getRules :: Language a }
+newtype LogicLanguage a= LogicLanguage {getLogicLanguage :: Language a}
 
-newtype Rules = Rules {getRules :: Language}
-newtype LogicLanguage = LogicLanguage {getLogicLanguage :: Language}
-
-instance Show Rules where 
+instance (Show a) => Show (Rules a) where 
     show  = show . getRules
 
-instance Show LogicLanguage where 
+instance (Show a) => Show (LogicLanguage a) where 
     show  = show . getLogicLanguage
 
 -- A list of sets of rules 
 -- [[r1,r2],[r3,r4]]
 -- 1. Path that satisfy path properties 
-type Path = [Language] 
+type Path a = [Language a] 
 
 -- A list of Path
 -- 1. Argument 
 -- 2. In complete- argument 
-type Argument = [Path]
+type Argument a = [Path a]
 
 {-
 Following types:
  'Base', 'DefeaterStatus', 'Defater' , 
 are used for BCOptimization algorithm. 
 -}
-type Base = Argument 
 
-data DefeaterStatus = Warranted | Unwarranted | Pending
+-- data DefeaterStatus = Warranted Argument | Unwarranted Argument | Pending Argument 
 
-data Defeater = SW Path | Node DefeaterStatus [(Path,Defeater)] 
+data Defeater = forall a .(Show a) => SW (Argument a)| forall a. (Show a) => Warranted (Path a, Defeater) | forall a. (Show a ) => Unwarranted [(Path a,Defeater)] 
 
 
-type SearchRecord = (Path,Defeater) 
-type SearchRecords = [SearchRecord]
+type SearchRecord a = (Path a,Defeater) 
+type SearchRecords a = [SearchRecord a]
 
-type PathRecord = (Path,Argument) 
-type PathRecords = [PathRecord]
+type PathRecord a = (Path a,Argument a) 
+type PathRecords a = [PathRecord a]
 
-data Board = Board {lucky :: SearchRecords , waiting :: PathRecords, futile :: SearchRecords, seen :: Language} deriving(Show)
+data Board = forall a . (Show a ) => Board {lucky :: SearchRecords a, waiting :: PathRecords a, futile :: SearchRecords a, seen :: Language a}
 
 instance Show Defeater where 
     show (SW p) = show p 
-    show (Node Warranted sub) = 
-        "Warranted Node: " ++ "\n" ++ showSubTree  sub 
-    show (Node Unwarranted sub) = 
+    show (Warranted sub) = 
+        "Warranted Node: " ++ "\n" ++ showSingleTree sub ""
+    show (Unwarranted sub) = 
         "Unwarranted Node: " ++ "\n" ++ showSubTree sub
-    show (Node Pending sub) = 
-        "Status Pending Node" ++ "\n" ++ showSubTree  sub
 
-showSubTree :: [(Path, Defeater)] -> String 
+showSubTree :: forall a . (Show a) => [(Path a, Defeater)] -> String 
 showSubTree = foldr showSingleTree "" 
-showSingleTree :: (Path,Defeater) -> String -> String 
+showSingleTree :: forall a. (Show a) =>  (Path a,Defeater) -> String -> String 
 showSingleTree (p,d) s = 
     let
         content =  
@@ -123,8 +135,14 @@ showSingleTree (p,d) s =
             "defeater" ++ show d 
     in content ++ s 
 
--- instance Show Board where 
---     show Board{..} = 
+instance Show Board where 
+    show Board{..} = 
+        "LUCKY: " ++ show lucky ++ "/n" ++
+        "WAITING: " ++ show waiting ++ "/n" ++ 
+        "FUTILE: " ++ show futile ++ "/n" ++ 
+        "SEEN: " ++ show seen 
+
+
 {-
 Auxiliaies types and functions below
 -}
@@ -144,13 +162,14 @@ instance Eq Imp where
     (==) _ _ = False
 
 -- | LanguageMap is a dictionary used to query Literal with given name
-type LiteralMap = forall a . Map.HashMap Name (Literal a) 
-newtype StrictRules = StrictRules {getStrictRules :: Language}
-newtype DefeasibleRules = DefeasibleRules {getDefeasibleRules :: Language}
 
-type PreferenceMap = Map.HashMap Name Int 
-newtype RdPrefMap = RdPrefMap {getRdPrefMap :: Map.HashMap Name Int}
-newtype KnwlPrefMap = KnwlPrefMap { getKnwlPrefMap :: Map.HashMap Name Int}
+-- type LiteralMap = forall a . Map.HashMap Name (Literal a) 
+-- newtype StrictRules = StrictRules {getStrictRules :: Language}
+-- newtype DefeasibleRules = DefeasibleRules {getDefeasibleRules :: Language}
+
+-- type PreferenceMap = Map.HashMap Name Int 
+-- newtype RdPrefMap = RdPrefMap {getRdPrefMap :: Map.HashMap Name Int}
+-- newtype KnwlPrefMap = KnwlPrefMap { getKnwlPrefMap :: Map.HashMap Name Int}
 
 -- | name of an instantiation of type `Literal`: it plays two rules:
 -- 1. To be used to guarantee the uniqueness of a `Literal`.

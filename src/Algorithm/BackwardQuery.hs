@@ -15,34 +15,18 @@ import Data.Function (on)
 import Control.Monad.Reader 
 import Control.Monad.IO.Class 
 
-import qualified Space.Defeasible as D
-import qualified Utility.Defeasible as MD
-import qualified Space.Meta as M 
+-- import qualified Space.Defeasible as D
+-- import qualified Utility.Defeasible as MD
+-- import qualified Space.Meta as M 
 
 import qualified ASPIC.Abstraction as AS
 import qualified ASPIC.Defeasible as D 
 import qualified Run.Env as Env 
 
-import EnvDef  
-import Space.DefeasibleInstance ( Conflict(..) )
-import Space.DefeasibleFrame ( Attack(conflict) )
+-- import EnvDef  
+-- import Space.DefeasibleInstance ( Conflict(..) )
+-- import Space.DefeasibleFrame ( Attack(conflict) )
 
-
-
-
-type Base = D.Argument 
-
-data ArgumentStatus = Warranted | Unwarranted 
-
-data Defeater = SW D.Path | Node [(D.Path,Defeater)] deriving (Show)
-
-type SearchRecord = (D.Path,Defeater)
-type SearchRecords = [SearchRecord]
-
-type PathRecord = (D.Path,D.Argument) 
-type PathRecords = [PathRecord]
-
-data Board = Board {lucky :: SearchRecords , waiting :: PathRecords, futile :: SearchRecords, seen :: D.Language} deriving(Show)
 
 query:: 
     ( Has D.Language env  
@@ -132,13 +116,13 @@ Notes:
     2. select one lucker from possibly many in lucky
 -}
 defeatDetection :: 
-    ( Has D.Language env  
-    , UseRuleOnly env 
-    , MonadReader env m
+    ( AS.UseASPIC env
+    , AS.PathSelection env  
+    , AS.DefeaterSelection env  
     , MonadIO m 
-    , OrderingContext env 
-    ) => Board -> m (Either Board SearchRecord)
-defeatDetection board@Board{..} = do 
+    , MonadReader env m 
+    ) => D.Board -> m (Either D.Board D.SearchRecord)
+defeatDetection board@D.Board{..} = do 
         (newWaiting, newSeen, newLucky) <- checkLuckySet seen lucky
         let 
             completeLuckers = checkLuckyComplete newLucky 

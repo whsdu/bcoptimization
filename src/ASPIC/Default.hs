@@ -3,31 +3,39 @@
 
 module ASPIC.Default where 
 
-import ASPIC.Defeasible (Literal(..),Board(..), name)
-import ASPIC.Abstraction (Negation(..), SelectionFunction)
-import Run.Env 
+import ASPIC.Defeasible (Literal(..),Board(..), Imp(..), name, imp,conC)
+import ASPIC.Abstraction (NegationFunction, CheckNegationFunction, PathSelection, DefeaterSelection)
+import ASPIC.Ordering(Conflict(..))
 
-instance Eq (Literal ()) where 
-    (==) l1 l2 = name l1 == name l2
+import Data.Maybe(fromMaybe)
 
-instance Negation (Literal ()) where
-    neg (Rule n b i h)
-        |  head n == '!' =
-            let nLiteral = tail n 
-            in Rule nLiteral b i h
-        | otherwise =
-            let nLiteral = '!' : n
-            in Rule nLiteral b i h
-    neg (Atom n a)
-        |  head n  == '!' =
-            let nLiteral = tail n
-            in Atom nLiteral a
-        | otherwise =
-            let nLiteral = '!' : n
-            in Atom nLiteral a
+-- instance Eq (Literal ()) where 
+--     (==) l1 l2 = name l1 == name l2
 
-selectionOne :: SelectionFunction 
+neg :: NegationFunction ()
+neg (Rule n a i h)
+    |  head n == '!' =
+        let nLiteral = tail n 
+        in Rule nLiteral a i h
+    | otherwise =
+        let nLiteral = '!' : n
+        in Rule nLiteral a i h
+neg (Atom n a)
+    |  head n  == '!' =
+        let nLiteral = tail n
+        in Atom nLiteral a
+    | otherwise =
+        let nLiteral = '!' : n
+        in Atom nLiteral a
+
+isNegation :: CheckNegationFunction () 
+isNegation = (==)
+
+selectionOne :: PathSelection a
 selectionOne b = undefined 
+
+selectionTwo :: DefeaterSelection a 
+selectionTwo b = undefined 
 
 -- lanEqual :: Language -> Language -> Bool 
 -- lanEqual al bl = isElemB && isElemA 
