@@ -4,7 +4,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 
-module ASPIC.AS
+module ASPIC.Defeasible
     ( Literal (..)
     , Language 
     , Path 

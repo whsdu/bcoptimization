@@ -1,8 +1,11 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+
 module ASPIC.Default where 
 
-import ASPIC.AS (Literal(..),Board(..), name)
-import ASPIC.Abstraction(Negation(..), SelectionFunction)
+import ASPIC.Defeasible (Literal(..),Board(..), name)
+import ASPIC.Abstraction (Negation(..), SelectionFunction)
+import Run.Env 
 
 instance Eq (Literal ()) where 
     (==) l1 l2 = name l1 == name l2

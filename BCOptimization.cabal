@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.33.0.
+-- This file has been generated from package.yaml by hpack version 0.34.2.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: ffb3da217a23b5d593c01aa6e35bc7c8e04fbb3af06cd170a206db85b8bba77a
+-- hash: 4ead3b87906d04cda0c59f97f4ad4fa021a521942d690a4dda0b6a49621a8d6c
 
 name:           BCOptimization
 version:        0.1.0.0
@@ -27,9 +27,11 @@ source-repository head
 
 library
   exposed-modules:
+      Algorithm.BackwardQuery
       ASPIC.Abstraction
-      ASPIC.AS
       ASPIC.Default
+      ASPIC.Defeasible
+      ASPIC.Ordering
       Dung.Argument
       Lib
       Run.Env
