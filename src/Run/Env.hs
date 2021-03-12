@@ -16,12 +16,12 @@ import Control.Monad.Reader
     ( MonadIO, asks, MonadReader, ReaderT(..) )
 
 import qualified ASPIC.AS  as AS (LogicLanguage(..),Rules(..))
-import qualified ASPIC.Abstraction as Abs (Negation(..))
+import qualified ASPIC.Abstraction as Abs (Negation(..), SelectionFunction)
 
 data AS = AS 
     { asLanguage :: AS.LogicLanguage 
     , asRules :: AS.Rules 
-    , conflict ::  forall a. (Abs.Negation a) => a -> a -> Bool 
+    , asSelection :: Abs.SelectionFunction
     } 
 
 instance Show AS where 

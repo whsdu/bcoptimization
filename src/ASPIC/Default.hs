@@ -1,13 +1,13 @@
+{-# LANGUAGE FlexibleInstances #-}
 module ASPIC.Default where 
 
-import ASPIC.AS (Literal(..),name)
-import ASPIC.Abstraction(Negation(..))
+import ASPIC.AS (Literal(..),Board(..), name)
+import ASPIC.Abstraction(Negation(..), SelectionFunction)
 
-
-instance Eq (Literal a) where
+instance Eq (Literal ()) where 
     (==) l1 l2 = name l1 == name l2
 
-instance Negation (Literal a) where
+instance Negation (Literal ()) where
     neg (Rule n b i h)
         |  head n == '!' =
             let nLiteral = tail n 
@@ -22,6 +22,9 @@ instance Negation (Literal a) where
         | otherwise =
             let nLiteral = '!' : n
             in Atom nLiteral a
+
+selectionOne :: SelectionFunction 
+selectionOne b = undefined 
 
 -- lanEqual :: Language -> Language -> Bool 
 -- lanEqual al bl = isElemB && isElemA 

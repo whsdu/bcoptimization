@@ -3,7 +3,6 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
-{-# LANGUAGE DatatypeContexts #-}
 
 module ASPIC.AS
     ( Literal (..)
@@ -14,6 +13,7 @@ module ASPIC.AS
     , Name
     , Rules(..)
     , LogicLanguage(..)
+    , Board(..)
     -- , LiteralMap
     -- , StrictRules (..)
     -- , DefeasibleRules(..)
@@ -41,10 +41,10 @@ import qualified GHC.List as GHC (head)
 -- data Statement a = Statement a | Deduction
 
 data Literal a where
-    Atom ::  Name -> a -> Literal a
-    Rule ::  Name -> [Literal a] -> Imp -> Literal a-> Literal a deriving(Functor, Monad)
+    Atom :: (Show a) =>  Name -> a -> Literal a
+    Rule ::  (Show a) => Name -> [Literal a] -> Imp -> Literal a-> Literal a 
 
-instance Show (Literal a) where
+instance (Show a) => Show (Literal a) where
     show (Rule n b i h) = n ++ ": " ++ bs ++ im ++ head
         where
             bs = unwords $ name <$> b
@@ -52,21 +52,18 @@ instance Show (Literal a) where
             head = name h
     show (Atom n _) = n
 
-instance Applicative Literal where 
-    pure = Atom ""
-    (Atom _ f) <*> (Atom n a) = Atom n (f a)
-    f <*> (Rule _ _ _ c) = f <*> c 
+-- instance Applicative Literal where 
+--     pure = Atom ""
+--     (Atom _ f) <*> (Atom n a) = Atom n (f a)
+--     f <*> (Rule _ _ _ c) = f <*> c 
 
--- instance Eq (Literal a) where 
-    -- l1 == l2 = name l1 == name l2 
-
--- | Preference needs to be redefined 
-
--- | `L` language is a set of `Literal`
 
 -- A set of rules 
 -- [r1,r2,r3,r4]
-type Language  = forall a . [Literal a]
+data Language  = forall a . Show a => Language [Literal a]
+
+instance Show Language where 
+    show (Language l) = show l 
 
 newtype Rules = Rules {getRules :: Language}
 newtype LogicLanguage = LogicLanguage {getLogicLanguage :: Language}
@@ -80,13 +77,57 @@ instance Show LogicLanguage where
 -- A list of sets of rules 
 -- [[r1,r2],[r3,r4]]
 -- 1. Path that satisfy path properties 
-type Path = forall a . [[Literal a]]
+type Path = [Language] 
 
 -- A list of Path
 -- 1. Argument 
 -- 2. In complete- argument 
-type Argument = forall a . [[[Literal a]]] 
+type Argument = [Path]
 
+{-
+Following types:
+ 'Base', 'DefeaterStatus', 'Defater' , 
+are used for BCOptimization algorithm. 
+-}
+type Base = Argument 
+
+data DefeaterStatus = Warranted | Unwarranted | Pending
+
+data Defeater = SW Path | Node DefeaterStatus [(Path,Defeater)] 
+
+
+type SearchRecord = (Path,Defeater) 
+type SearchRecords = [SearchRecord]
+
+type PathRecord = (Path,Argument) 
+type PathRecords = [PathRecord]
+
+data Board = Board {lucky :: SearchRecords , waiting :: PathRecords, futile :: SearchRecords, seen :: Language} deriving(Show)
+
+instance Show Defeater where 
+    show (SW p) = show p 
+    show (Node Warranted sub) = 
+        "Warranted Node: " ++ "\n" ++ showSubTree  sub 
+    show (Node Unwarranted sub) = 
+        "Unwarranted Node: " ++ "\n" ++ showSubTree sub
+    show (Node Pending sub) = 
+        "Status Pending Node" ++ "\n" ++ showSubTree  sub
+
+showSubTree :: [(Path, Defeater)] -> String 
+showSubTree = foldr showSingleTree "" 
+showSingleTree :: (Path,Defeater) -> String -> String 
+showSingleTree (p,d) s = 
+    let
+        content =  
+            "Path:" ++ show p ++ "\n" ++ 
+            "defeater" ++ show d 
+    in content ++ s 
+
+-- instance Show Board where 
+--     show Board{..} = 
+{-
+Auxiliaies types and functions below
+-}
 type Name = String 
 
 data Imp = S | D | N
