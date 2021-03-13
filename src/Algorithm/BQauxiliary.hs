@@ -4,7 +4,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Algorithm.BCauxiliary where 
+module Algorithm.BQauxiliary where 
 
 import Control.Monad (guard)
 import qualified Data.HashMap.Strict as Map 
@@ -27,13 +27,14 @@ move this (Path, New Defeater) to waiting :: PathRecords,
 update seen :: Language, 
 get new lucky :: SearchRecords 
 -}
-checkLuckySet ::
-    ( AS.UseASPIC env 
-    , AS.Has AS.PathSelection env 
-    , AS.Has AS.DefeaterSelection env 
+checkLuckySet :: forall a env m .
+    ( AS.Has (D.LogicLanguage a) env
+    , AS.Has (D.Rules a) env
+    , AS.Has (AS.PathSelection a) env  
+    , AS.Has (AS.DefeaterSelection a) env  
     , MonadIO m 
-    , MonadReader env m 
-    ) => D.Language -> D.SearchRecords -> m (D.PathRecords, D.Language, D.SearchRecords)
+    , MonadReader env m  
+    ) => D.Language a-> D.SearchRecords a-> m (D.PathRecords a, D.Language a, D.SearchRecords a)
 checkLuckySet seen [] = pure ([],seen,[])
 checkLuckySet seen (r:rs) = do 
     (re, newSeen) <- checkLucker seen r 
@@ -42,24 +43,28 @@ checkLuckySet seen (r:rs) = do
         Right sr -> pure (newwait,ss, sr : nlucy)
         Left pr -> pure (pr : newwait, ss, nlucy)
     where 
-
-    checkLucker::
-        ( AS.UseASPIC env 
-        , AS.Has AS.PathSelection env 
-        , AS.Has AS.DefeaterSelection env 
+    -- | Check if Search Record has defeated
+    -- | Yes --> Convert SearchRecord to PathRecord , update seen 
+    -- | No --> return SearchRecord 
+    checkLucker :: forall a env m .
+        ( AS.Has (D.LogicLanguage a) env
+        , AS.Has (D.Rules a) env
+        , AS.Has (AS.PathSelection a) env  
+        , AS.Has (AS.DefeaterSelection a) env  
         , MonadIO m 
-        , MonadReader env m 
-        ) => D.Language -> D.SearchRecord -> m (Either D.PathRecord D.SearchRecord, D.Language)
+        , MonadReader env m  
+        ) => D.Language a-> D.SearchRecord a-> m (Either (D.PathRecord a) (D.SearchRecord a), (D.Language a)
     checkLucker seen sr@(p,_) = do                  
         r <- defeatDetection seen p                      -- previous unwarranted defeater will be discarded. 
         case r of 
             Nothing -> pure (Right sr, seen)
             Just (p,newSeen) -> pure (Left p,newSeen)
 
-    defeatDetection ::
-        ( AS.UseASPIC env 
-        , AS.Has AS.PathSelection env 
-        , AS.Has AS.DefeaterSelection env 
+    defeatDetection :: forall a env m .
+        ( AS.Has (D.LogicLanguage a) env
+        , AS.Has (D.Rules a) env
+        , AS.Has (AS.PathSelection a) env  
+        , AS.Has (AS.DefeaterSelection a) env  
         , MonadIO m 
         , MonadReader env m 
         ) => D.Language -> D.Path -> m (Maybe (D.PathRecord, D.Language))
@@ -68,13 +73,16 @@ checkLuckySet seen (r:rs) = do
         let 
             valid = [ r | r <- lang, r `notElem` seen ]
             localRules = concat p 
-        mapM Ord.conflict valid <*> localRules
+        checkedConflict <- Ord.conflict valid <*> localRules
+        let 
+            validConflict = filter (/= Ord.Peace) checkedConflict 
         pure undefined 
     
-    checkConflict :: 
-        ( AS.UseASPIC env 
-        , AS.Has AS.PathSelection env 
-        , AS.Has AS.DefeaterSelection env 
+    checkConflict :: forall a env m .
+        ( AS.Has (D.LogicLanguage a) env
+        , AS.Has (D.Rules a) env
+        , AS.Has (AS.PathSelection a) env  
+        , AS.Has (AS.DefeaterSelection a) env  
         , MonadIO m 
         , MonadReader env m 
         ) => D.Literal a-> D.Literal a-> m D.Language 

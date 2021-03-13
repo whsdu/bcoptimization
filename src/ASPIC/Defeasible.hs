@@ -1,4 +1,3 @@
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveAnyClass #-}
@@ -75,11 +74,14 @@ instance (Eq a) => Eq (Literal a) where
 --     (Atom _ f) <*> (Atom n a) = Atom n (f a)
 --     f <*> (Rule _ _ _ c) = f <*> c 
 
-
+{-Language-}
 -- A set of rules 
 -- [r1,r2,r3,r4]
 type Language a = [Literal a] 
 
+{-
+Wrapper of Language so that we could tell the difference between Rules and Language.
+-}
 newtype Rules a = Rules {getRules :: Language a }
 newtype LogicLanguage a= LogicLanguage {getLogicLanguage :: Language a}
 
@@ -89,11 +91,13 @@ instance (Show a) => Show (Rules a) where
 instance (Show a) => Show (LogicLanguage a) where 
     show  = show . getLogicLanguage
 
+{-Path-}
 -- A list of sets of rules 
 -- [[r1,r2],[r3,r4]]
 -- 1. Path that satisfy path properties 
 type Path a = [Language a] 
 
+{-Argument-}
 -- A list of Path
 -- 1. Argument 
 -- 2. In complete- argument 
@@ -107,27 +111,32 @@ are used for BCOptimization algorithm.
 
 -- data DefeaterStatus = Warranted Argument | Unwarranted Argument | Pending Argument 
 
-data Defeater = forall a .(Show a) => SW (Argument a)| forall a. (Show a) => Warranted (Path a, Defeater) | forall a. (Show a ) => Unwarranted [(Path a,Defeater)] 
+data Defeater a = 
+                  (Show a) => SW (Argument a)
+                | (Show a) => Warranted (Path a, Defeater a)
+                | (Show a) => Unwarranted [(Path a, Defeater a)] 
+                | (Show a) => Processing [(Path a, Defeater a)]
 
 
-type SearchRecord a = (Path a,Defeater) 
+type SearchRecord a = (Path a,Defeater a) 
 type SearchRecords a = [SearchRecord a]
 
 type PathRecord a = (Path a,Argument a) 
 type PathRecords a = [PathRecord a]
 
-data Board = forall a . (Show a ) => Board {lucky :: SearchRecords a, waiting :: PathRecords a, futile :: SearchRecords a, seen :: Language a}
+data Board a = Board {lucky :: SearchRecords a, waiting :: PathRecords a, futile :: SearchRecords a, seen :: Language a}
 
-instance Show Defeater where 
+instance (Show a) => Show (Defeater a) where 
     show (SW p) = show p 
     show (Warranted sub) = 
         "Warranted Node: " ++ "\n" ++ showSingleTree sub ""
     show (Unwarranted sub) = 
         "Unwarranted Node: " ++ "\n" ++ showSubTree sub
 
-showSubTree :: forall a . (Show a) => [(Path a, Defeater)] -> String 
+showSubTree ::  (Show a) => [(Path a, Defeater a)] -> String 
 showSubTree = foldr showSingleTree "" 
-showSingleTree :: forall a. (Show a) =>  (Path a,Defeater) -> String -> String 
+
+showSingleTree :: (Show a) =>  (Path a,Defeater a) -> String -> String 
 showSingleTree (p,d) s = 
     let
         content =  
@@ -135,7 +144,7 @@ showSingleTree (p,d) s =
             "defeater" ++ show d 
     in content ++ s 
 
-instance Show Board where 
+instance (Show a) => Show (Board a) where 
     show Board{..} = 
         "LUCKY: " ++ show lucky ++ "/n" ++
         "WAITING: " ++ show waiting ++ "/n" ++ 

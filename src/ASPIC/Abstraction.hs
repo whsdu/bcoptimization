@@ -1,9 +1,10 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE ConstraintKinds #-}
 
 module ASPIC.Abstraction where 
 
@@ -30,25 +31,18 @@ instance (Show a) => Show (AS a) where
 
 instance Has (D.LogicLanguage a) (AS a) where obtain  = asLanguage
 
-instance Has (D.Rules a) (AS a)
-    where obtain AS{asRules = rules }= rules 
+instance Has (D.Rules a) (AS a) where obtain = asRules
 
-instance Has (PathSelection a) (AS a)
-    where obtain AS{asPathSelection=pathSelection}= pathSelection
-    
--- instance Has (DefeaterSelection a) AS 
---     where obtain AS{asDefeaterSelection = defeaterSelection}= DefeaterSelection
+instance Has (PathSelection a) (AS a) where obtain = asPathSelection 
 
--- instance Has (NegationFunction a) AS 
---     where obtain AS{asNegationFunction = negationFunction}= negationFunction 
+instance Has (NegationFunction a) (AS a) where obtain = asNegationFunction
 
--- instance Has (CheckNegationFunction a) AS 
---     where obtain AS{asCheckNegationFunction = checkFunction }= checkFunction
-
-
+instance Has (CheckNegationFunction a) (AS a) where obtain = asCheckNegationFunction
 
 type PathSelection a = D.Rules a-> D.SearchRecords a-> Bool 
 type DefeaterSelection a = D.Rules a -> D.PathRecords a -> Bool 
+
+-- type ASPIC a = (Has (D.LogicLanguage  a) (AS a), Has (D.Rules a) (AS a))
 
 
 -- | The ability to define Negation when implementing this library might relies on 

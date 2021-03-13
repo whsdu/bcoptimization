@@ -7,7 +7,6 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 
 module Run.Env where 
@@ -25,5 +24,5 @@ newtype App a b = App
     { unApp :: ReaderT (AS.AS a) IO b
     } deriving newtype (Functor, Applicative, Monad, MonadIO , MonadReader (AS.AS a)) 
 
-runApp ::forall a b. AS.AS a -> App a b -> IO b
+runApp :: AS.AS a -> App a b -> IO b
 runApp env app = (runReaderT $ unApp app) env 
