@@ -4,6 +4,7 @@
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE RankNTypes #-}
 
 module ASPIC.Defeasible
     ( Literal (..)
@@ -20,6 +21,7 @@ module ASPIC.Defeasible
     , PathRecord
     , PathRecords
     , Defeater(..)
+    , PreferenceMap
     -- , LiteralMap
     -- , StrictRules (..)
     -- , DefeasibleRules(..)
@@ -31,6 +33,7 @@ module ASPIC.Defeasible
     , imp
     , conC
     , statement
+    , branchDef
     ) where 
     
 
@@ -66,7 +69,9 @@ instance (Eq a) => Eq (Literal a) where
             bodyEq  = (length body1 == length body2)
             impEq   = imp1 == imp2 
             headEq  = h1 == h2 
-        in nameEq && bodyEq && impEq && headEq 
+        in nameEq && bodyEq && impEq && headEq
+    (Atom _ _) == Rule{} = False
+    Rule{} == Atom{} = False 
 
 
 -- instance Applicative Literal where 
@@ -115,8 +120,7 @@ data Defeater a =
                   (Show a) => SW (Argument a)
                 | (Show a) => Warranted (Path a, Defeater a)
                 | (Show a) => Unwarranted [(Path a, Defeater a)] 
-                | (Show a) => Processing [(Path a, Defeater a)]
-
+                | NoDefeater
 
 type SearchRecord a = (Path a,Defeater a) 
 type SearchRecords a = [SearchRecord a]
@@ -124,10 +128,14 @@ type SearchRecords a = [SearchRecord a]
 type PathRecord a = (Path a,Argument a) 
 type PathRecords a = [PathRecord a]
 
+-- | Lucky contains Either SearchRecords with NoDefeaters or SearchRecord with Unwarranted defeaters 
+-- futile contains SearchRecords with Warranted defeaters only. 
+-- TODO: this should be a dependent type. 
 data Board a = Board {lucky :: SearchRecords a, waiting :: PathRecords a, futile :: SearchRecords a, seen :: Language a}
 
 instance (Show a) => Show (Defeater a) where 
     show (SW p) = show p 
+    show NoDefeater = "NO-Defeater"
     show (Warranted sub) = 
         "Warranted Node: " ++ "\n" ++ showSingleTree sub ""
     show (Unwarranted sub) = 
@@ -135,8 +143,7 @@ instance (Show a) => Show (Defeater a) where
 
 showSubTree ::  (Show a) => [(Path a, Defeater a)] -> String 
 showSubTree = foldr showSingleTree "" 
-
-showSingleTree :: (Show a) =>  (Path a,Defeater a) -> String -> String 
+showSingleTree :: (Show a) =>  (Path a, Defeater a) -> String -> String 
 showSingleTree (p,d) s = 
     let
         content =  
@@ -172,7 +179,8 @@ instance Eq Imp where
 
 -- | LanguageMap is a dictionary used to query Literal with given name
 
--- type LiteralMap = forall a . Map.HashMap Name (Literal a) 
+type LiteralMap = forall a . Map.HashMap Name (Literal a) 
+type PreferenceMap = Map.HashMap Name Int 
 -- newtype StrictRules = StrictRules {getStrictRules :: Language}
 -- newtype DefeasibleRules = DefeasibleRules {getDefeasibleRules :: Language}
 
@@ -209,5 +217,11 @@ statement :: Literal a -> a
 statement (Rule _ _ _ h) = statement h 
 statement (Atom _ a) = a 
 
-
-
+branchDef :: forall a.(Eq a) => Path a-> Language a -> Path a
+branchDef mp [] = []
+branchDef mp lang = 
+    let 
+        rules = concat mp 
+        currentLevel = [ r |l <- lang, r <- rules, conC r == l] 
+        nextLevelPros = concat $ body <$> currentLevel
+    in currentLevel : branchDef mp nextLevelPros

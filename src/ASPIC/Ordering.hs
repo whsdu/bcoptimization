@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 module ASPIC.Ordering where 
 
-import ASPIC.Defeasible ( Imp(D, S, N), Literal, imp, conC ) 
+import ASPIC.Defeasible (Path, Imp(D, S, N), Literal, imp, conC ) 
 import ASPIC.Abstraction 
 import Run.Env 
 
@@ -11,15 +11,15 @@ import Control.Monad.IO.Class
 import Control.Monad.Reader 
 
 
-data Conflict  =forall a. Rebut (Literal a)| forall a. Undercut (Literal a)| Peace 
+data Conflict a = Rebut (Literal a, Literal a)| Undercut (Literal a, Literal a)| Peace deriving (Eq)
 
-conflict :: forall a env m . 
+conflict :: 
     ( Eq a
     , MonadReader env m 
     , MonadIO m 
     , Has (NegationFunction a) env
     , Has (CheckNegationFunction a) env 
-    ) => Literal a -> Literal a -> m Conflict 
+    ) => Literal a -> Literal a -> m (Conflict a)
 conflict proposition rule = 
     case imp rule of 
         S -> pure $ Peace 
@@ -35,22 +35,28 @@ rebuts :: forall a env m .
     , MonadIO m 
     , Has (NegationFunction a) env
     , Has (CheckNegationFunction a) env 
-    ) => Literal a -> Literal a -> m (Maybe Conflict)
+    ) => Literal a -> Literal a -> m (Maybe (Conflict a))
 rebuts proposition rule = do 
     neg <- grab @(NegationFunction a)
     isNeg <- grab @(CheckNegationFunction a)
-    pure undefined 
+    if isNeg (neg proposition) (conC rule)
+        then pure $ Just $ Rebut (proposition , rule)
+        else pure Nothing  
 
-undercuts:: forall a env m . 
+undercuts:: forall a env m. 
     ( Eq a
     , MonadReader env m 
     , MonadIO m 
     , Has (NegationFunction a) env
     , Has (CheckNegationFunction a) env 
-    ) => Literal a -> Literal a -> m (Maybe Conflict)
+    ) => Literal a -> Literal a -> m (Maybe (Conflict a))
 undercuts ruleAttacker rule = do 
     neg <- grab @(NegationFunction a)
     isNeg <- grab @(CheckNegationFunction a)
     if isNeg ((neg . conC) ruleAttacker) rule 
-        then pure $ Just $ Undercut (conC ruleAttacker)
+        then pure $ Just $ Undercut (conC ruleAttacker, rule) 
         else pure $ Nothing 
+
+isOrdReady :: forall a . Path a -> Bool 
+isOrdReady p = undefined 
+

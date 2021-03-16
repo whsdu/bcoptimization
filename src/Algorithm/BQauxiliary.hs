@@ -17,6 +17,7 @@ import qualified ASPIC.Abstraction as AS
 import qualified ASPIC.Defeasible as D 
 import qualified ASPIC.Ordering as Ord 
 import qualified Run.Env as Env 
+import qualified Toolkits.Common as TOOL
 
 
 {-
@@ -27,169 +28,202 @@ move this (Path, New Defeater) to waiting :: PathRecords,
 update seen :: Language, 
 get new lucky :: SearchRecords 
 -}
-checkLuckySet :: forall a env m .
+checkLuckySet ::
     ( AS.Has (D.LogicLanguage a) env
     , AS.Has (D.Rules a) env
-    , AS.Has (AS.PathSelection a) env  
-    , AS.Has (AS.DefeaterSelection a) env  
+    , AS.Has D.PreferenceMap  env
+    , AS.Has (AS.OrderFunction a) env
+    , AS.Has (AS.CheckNegationFunction a) env
+    , AS.Has (AS.NegationFunction a) env
     , MonadIO m 
     , MonadReader env m  
+    , Eq a 
     ) => D.Language a-> D.SearchRecords a-> m (D.PathRecords a, D.Language a, D.SearchRecords a)
 checkLuckySet seen [] = pure ([],seen,[])
 checkLuckySet seen (r:rs) = do 
-    (re, newSeen) <- checkLucker seen r 
-    (newwait, ss , nlucy) <- checkLuckySet newSeen rs 
-    case re of 
-        Right sr -> pure (newwait,ss, sr : nlucy)
-        Left pr -> pure (pr : newwait, ss, nlucy)
+    checkResult <- checkLucker seen r 
+    case checkResult of 
+        Right (sr,newSeen) -> do 
+            (newWait, ss, nLucky) <- checkLuckySet newSeen rs 
+            pure (newWait, ss , sr : nLucky)
+        Left (pr,newSeen) -> do 
+            (newWait, ss, nLucky) <- checkLuckySet newSeen rs 
+            pure (pr :newWait, ss ,nLucky)
     where 
     -- | Check if Search Record has defeated
     -- | Yes --> Convert SearchRecord to PathRecord , update seen 
     -- | No --> return SearchRecord 
-    checkLucker :: forall a env m .
+    checkLucker :: forall a env m . 
         ( AS.Has (D.LogicLanguage a) env
         , AS.Has (D.Rules a) env
-        , AS.Has (AS.PathSelection a) env  
-        , AS.Has (AS.DefeaterSelection a) env  
-        , MonadIO m 
-        , MonadReader env m  
-        ) => D.Language a-> D.SearchRecord a-> m (Either (D.PathRecord a) (D.SearchRecord a), (D.Language a)
-    checkLucker seen sr@(p,_) = do                  
-        r <- defeatDetection seen p                      -- previous unwarranted defeater will be discarded. 
-        case r of 
-            Nothing -> pure (Right sr, seen)
-            Just (p,newSeen) -> pure (Left p,newSeen)
-
-    defeatDetection :: forall a env m .
-        ( AS.Has (D.LogicLanguage a) env
-        , AS.Has (D.Rules a) env
-        , AS.Has (AS.PathSelection a) env  
-        , AS.Has (AS.DefeaterSelection a) env  
+        , AS.Has D.PreferenceMap  env
+        , AS.Has (AS.OrderFunction a) env
+        , AS.Has (AS.CheckNegationFunction a) env
+        , AS.Has (AS.NegationFunction a) env
         , MonadIO m 
         , MonadReader env m 
-        ) => D.Language -> D.Path -> m (Maybe (D.PathRecord, D.Language))
-    defeatDetection seen p = do 
-        lang <- D.getLogicLanguage  <$> Env.grab @D.LogicLanguage 
+        , Eq a  
+        ) => D.Language a-> D.SearchRecord a-> m (Either (D.PathRecord a, D.Language a) (D.SearchRecord a, D.Language a))
+    checkLucker seen sr@(p,_) = do                  
+        lang <- D.getLogicLanguage  <$> Env.grab @(D.LogicLanguage a)
         let 
-            valid = [ r | r <- lang, r `notElem` seen ]
+            validP = [ r | r <- lang, r `notElem` seen ]
             localRules = concat p 
-        checkedConflict <- Ord.conflict valid <*> localRules
+        checkedConflict <- mapM (uncurry Ord.conflict) [(v,l) | v<-validP, l<-localRules]
         let 
             validConflict = filter (/= Ord.Peace) checkedConflict 
-        pure undefined 
+        if null validConflict 
+            then pure $ Right (sr, seen)
+            else do 
+                defeaterPropositions <- concat <$> mapM (checkConflict p) validConflict
+                if null defeaterPropositions  
+                    then pure $ Right (sr, seen)
+                    else do 
+                        let 
+                            newSeen = TOOL.rmdups $ seen ++ defeaterPropositions
+                        defeaterAgu <- initAgu defeaterPropositions
+                        pure $ Left ((p,defeaterAgu), newSeen)
     
     checkConflict :: forall a env m .
         ( AS.Has (D.LogicLanguage a) env
         , AS.Has (D.Rules a) env
-        , AS.Has (AS.PathSelection a) env  
-        , AS.Has (AS.DefeaterSelection a) env  
+        , AS.Has D.PreferenceMap  env
+        , AS.Has (AS.OrderFunction a) env
         , MonadIO m 
         , MonadReader env m 
-        ) => D.Literal a-> D.Literal a-> m D.Language 
-    checkConflict = undefined 
- 
-        -- conflicts <- scanAttacker seen p 
-        -- defeaters <- concat <$> mapM (checkConflict p) conflicts 
-        -- if null defeaters 
-            -- then pure (Right sr, seen)
-            -- else 
-                -- do 
-                -- let 
-                    -- newSeen = M.rmdups $ seen ++ defeaters      
-                -- newPathRecord <- createPathRecord p defeaters   
-                -- pure (Left newPathRecord, newSeen) 
+        , Eq a 
+        ) => D.Path a-> Ord.Conflict a-> m (D.Language a)
+    checkConflict _ (Ord.Undercut (a,l))= pure [a]
+    checkConflict _ Ord.Peace = pure [] 
+    checkConflict p (Ord.Rebut (a,l)) = do 
+        let 
+            defP = D.branchDef p [l]
+        necPaths <- getNecPath l
+        if 
+            null defP 
+            then pure []
+            else  do 
+                rs <- mapM (checkDefeat defP) necPaths 
+                if or rs 
+                    then pure [l] 
+                    else pure []   
+    getNecPath :: 
+        ( AS.Has (D.LogicLanguage a) env
+        , AS.Has (D.Rules a) env
+        , AS.Has D.PreferenceMap  env
+        , MonadIO m 
+        , MonadReader env m 
+        , Eq a  
+        ) => D.Literal a -> m (D.Argument a)
+    getNecPath l = do 
+        initA <- initAgu [l]
+        augDefeasible initA
 
--- | TODO: 
--- 1. 'conflict <$> globalRules <*> localRules' is really a computation consuming part!
--- 2. Extend Has so that this can be test automatically using QuickCheck maybe ? 
--- scanAttacker ::
---         ( MonadReader env m
---         , MonadIO m 
---         , Has D.Language env 
---         ) => D.Language -> D.Path -> m [Conflict]
--- scanAttacker seen path = do 
---     lang <- grab @D.Language 
---     let 
---         validRules = [r | r <-lang , r `notElem` seen] 
---         localRules = concat path
-    
---     pure $ filter ( /= Peace) $ conflict <$> validRules <*> localRules 
+    checkDefeat :: forall a env m.
+        ( AS.Has D.PreferenceMap  env
+        , AS.Has (AS.OrderFunction a) env
+        , MonadIO m 
+        , MonadReader env m 
+        ) => D.Path a-> D.Path a-> m Bool 
+    checkDefeat defenderPath attackPath = do 
+        prefMap <- Env.grab @D.PreferenceMap 
+        ordering <- Env.grab @(AS.OrderFunction a)
+        pure $ ordering attackPath defenderPath 
 
--- checkConflict :: 
---     ( MonadReader env m 
---     , MonadIO m 
---     , Has D.Language env 
---     , UseRuleOnly env 
---     , OrderingContext env 
---     ) => D.Path -> Conflict -> m D.Language 
--- checkConflict _ (Undercut l)= pure [l]
--- checkConflict _ Peace = pure [] 
--- checkConflict p (Rebut l) = do 
---     let 
---         defP = branchDef p [M.neg l]
---     necPaths <- getNecPath l
---     if 
---         null defP 
---         then pure []
---         else  do 
---             rs <- mapM (checkDefeat defP) necPaths 
---             if or rs 
---                 then pure [l] 
---                 else pure []  
+{-Construction Auxiliary-}
+initAgu :: 
+        ( AS.Has (D.Rules a) env
+        , MonadIO m 
+        , MonadReader env m 
+        , Eq a  
+        )=> D.Language a -> m (D.Argument a)
+initAgu ls = do
+    subLevel <- mapM concludeBy ls 
+    pure [[p] | p <- foldr createParallel [[]] subLevel]
 
+concludeBy ::forall a env m.
+        ( AS.Has (D.Rules a) env
+        , MonadIO m 
+        , MonadReader env m  
+        , Eq a 
+        ) => D.Literal a -> m (D.Language a)
+concludeBy l = do 
+    rules <- D.getRules <$> Env.grab @(D.Rules a)
+    pure [r | r<- rules, D.conC r == l ]
 
--- createPathRecord ::
---         ( MonadReader env m
---         , MonadIO m 
---         , UseRuleOnly env
---         )=> D.Path ->  D.Language -> m PathRecord
--- createPathRecord p defeaters = do 
---     tmpAgu <- initAgu defeaters
---     pure (p,tmpAgu)
+aguFixpoint :: 
+    ( AS.Has (D.Rules a) env
+    , MonadIO m 
+    , MonadReader env m 
+    , Eq a 
+    ) => D.Argument a -> m (D.Argument a)
+aguFixpoint argument = do 
+    extendedAgu <- agu argument 
+    if extendedAgu == argument 
+        then pure argument 
+        else aguFixpoint extendedAgu 
 
--- -- | This is the part which should be further abstracted. 
--- branchDef :: D.Path -> D.Language -> D.Path 
--- branchDef mp [] = []
--- branchDef mp lang = 
---     let 
---         rules = concat mp 
---         currentLevel = [ r |l <- lang, r <- rules, D.conC r == l] 
---         nextLevelPros = concat $ D.body <$> currentLevel
---     in currentLevel : branchDef mp nextLevelPros
+augDefeasible :: 
+    ( AS.Has (D.Rules a) env
+    , MonadIO m 
+    , MonadReader env m 
+    , Eq a 
+    ) => D.Argument a-> m (D.Argument a)
+augDefeasible = aguFixpoint 
 
--- getNecPath :: 
---     ( MonadReader env m 
---     , MonadIO m 
---     , Has D.Language env 
---     , UseRuleOnly env 
---     ) => D.Literal -> m D.Argument 
--- getNecPath l = do 
---     initA <- initAgu [l]
---     augDefeasible initA
+agu :: 
+    ( AS.Has (D.Rules a) env
+    , MonadIO m 
+    , MonadReader env m 
+    , Eq a 
+    ) => D.Argument a-> m (D.Argument a)
+agu argument = do 
+        arguments <- mapM pathExtend argument 
+        pure $ concat arguments 
 
--- checkDefeat :: 
---     ( MonadReader env m 
---     , MonadIO m 
---     , OrderingContext env
---     ) => D.Path -> D.Path -> m Bool 
--- checkDefeat defenderPath attackPath = do 
---     rdPreferenceMap <- D.getRdPrefMap <$>   grab @D.RdPrefMap
---     knPreferenceMap <- D.getKnwlPrefMap <$> grab @D.KnwlPrefMap
---     let prefMap = Map.union rdPreferenceMap knPreferenceMap
---         (flg, dDefs) = lastLinkChecker defenderPath (D.conC <$> head defenderPath)
---     if flg 
---     then
---         do 
---         let 
---             aDefs = [r | r <- concat attackPath, D.imp r == M.D]
---         pure $ ord prefMap aDefs dDefs 
-        
---     else 
---         pure flg 
+pathExtend :: 
+    ( AS.Has (D.Rules a) env
+    , MonadIO m 
+    , MonadReader env m
+    , Eq a 
+    ) => D.Path a -> m (D.Argument a)
+pathExtend path = do 
+    let 
+        rules = last path 
+        bodies = concat $ D.body <$> rules 
+    if 
+        null bodies 
+        then pure [path]
+    else 
+        do 
+        supportRules <- mapM concludeBy bodies 
+        let 
+            parallelPathSection = foldr createParallel [[]] supportRules
+            newArgument = do 
+                    pathSection <- parallelPathSection
+                    pure $ path ++ [pathSection] 
+        pure newArgument
 
--- selectOneLucker :: SearchRecords -> SearchRecord 
--- selectOneLucker rs = 
---     let 
---         completePath =  [r | r <- rs, reachGround (fst r) ]
---         shortestPath = sortBy (flip compare `on` (length . fst)) completePath 
---     in head shortestPath
+createParallel :: [a] -> [[a]] -> [[a]] 
+createParallel paths ls = do 
+        pa <- paths
+        a <- ls 
+        pure $  pa:a  
+
+checkLuckyComplete :: D.SearchRecords a-> D.SearchRecords a
+checkLuckyComplete rs = [r | r <- rs, reachGround (fst r) ]
+
+reachGround :: D.Path a-> Bool 
+reachGround path = 
+    let 
+        i = last path 
+    in case concat (D.body <$> i) of 
+        [] -> True 
+        _ -> False 
+
+pickOneFromManyLucker :: D.SearchRecords a-> D.SearchRecord a
+pickOneFromManyLucker rs = 
+    let 
+        completePath =  [r | r <- rs, reachGround (fst r) ]
+        shortestPath = sortBy (flip compare `on` (length . fst)) completePath 
+    in head shortestPath

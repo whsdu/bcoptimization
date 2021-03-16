@@ -15,26 +15,26 @@ import Data.Function (on)
 import Control.Monad.Reader 
 import Control.Monad.IO.Class 
 
--- import qualified Space.Defeasible as D
--- import qualified Utility.Defeasible as MD
--- import qualified Space.Meta as M 
-
 import qualified ASPIC.Abstraction as AS
 import qualified ASPIC.Defeasible as D 
 import qualified Run.Env as Env 
 
--- import EnvDef  
--- import Space.DefeasibleInstance ( Conflict(..) )
--- import Space.DefeasibleFrame ( Attack(conflict) )
-
+import Algorithm.BQauxiliary 
+                            ( checkLuckySet, checkLuckyComplete, pickOneFromManyLucker
+                            , pathExtend)
 
 query ::
     ( AS.Has (D.LogicLanguage a) env
     , AS.Has (D.Rules a) env
-    , AS.Has (AS.PathSelection a) env  
-    , AS.Has (AS.DefeaterSelection a) env  
+    , AS.Has D.PreferenceMap  env
+    , AS.Has (AS.OrderFunction a) env
+    , AS.Has (AS.CheckNegationFunction a) env
+    , AS.Has (AS.NegationFunction a) env
+    , AS.Has (AS.PathSelection a) env
+    , AS.Has (AS.DefeaterSelection  a) env
     , MonadIO m 
-    , MonadReader env m 
+    , MonadReader env m  
+    , Eq a
     , Show a 
     ) => D.Argument a->  m (D.Defeater a)
 query incArgu = queryArgument incArgu []
@@ -43,11 +43,16 @@ query incArgu = queryArgument incArgu []
 queryArgument ::
     ( AS.Has (D.LogicLanguage a) env
     , AS.Has (D.Rules a) env
-    , AS.Has (AS.PathSelection a) env  
-    , AS.Has (AS.DefeaterSelection a) env  
+    , AS.Has D.PreferenceMap  env
+    , AS.Has (AS.OrderFunction a) env
+    , AS.Has (AS.CheckNegationFunction a) env
+    , AS.Has (AS.NegationFunction a) env
+    , AS.Has (AS.PathSelection a) env
+    , AS.Has (AS.DefeaterSelection  a) env
     , MonadIO m 
     , MonadReader env m  
-    , Show a 
+    , Eq a
+    , Show a  
     ) => D.Argument a-> D.Language a->  m (D.Defeater a)
 queryArgument incArgu accSeen = do 
     let 
@@ -59,10 +64,15 @@ queryArgument incArgu accSeen = do
 defeatChain :: 
     ( AS.Has (D.LogicLanguage a) env
     , AS.Has (D.Rules a) env
-    , AS.Has (AS.PathSelection a) env  
-    , AS.Has (AS.DefeaterSelection a) env  
+    , AS.Has D.PreferenceMap  env
+    , AS.Has (AS.OrderFunction a) env
+    , AS.Has (AS.CheckNegationFunction a) env
+    , AS.Has (AS.NegationFunction a) env
+    , AS.Has (AS.PathSelection a) env
+    , AS.Has (AS.DefeaterSelection  a) env
     , MonadIO m 
     , MonadReader env m  
+    , Eq a
     , Show a 
     )  => D.Board a -> m (D.Defeater a)
 defeatChain step1Board = do 
@@ -80,7 +90,7 @@ defeatChain step1Board = do
                         step4Board = step3Board{D.lucky=step3Lucky++luckyExtend}
                     defeatChain step4Board
                 Nothing -> do 
-                    step6 <- defeaterChecker step2Board 
+                    step6 <- defeaterChain step2Board 
                     case step6 of 
                         Right unw -> pure unw 
                         Left step6Board -> defeatChain step6Board
@@ -101,12 +111,13 @@ Notes:
 initialBoard :: (Show a) => D.Argument a -> D.Board a
 initialBoard incArgu = 
     let 
-        luckySet = (,D.Processing []) <$> incArgu 
+        luckySet = (,D.NoDefeater) <$> incArgu 
     in D.Board luckySet [] [] []
 
 {- 2
 - Given Board from step 1
-    - Check 'lucky': If any unseen inc-defeater found for each path: 
+    - Check 'lucky': SearchRecords in lucky as of the type ::  [(Path a,Defeater a)]
+
         - include all newly defeated target to seen
         - Attaches the inc-defeater to related Path , move this PathRecord to 'waiting'
         - If path has old related defeater(much be unwarranted defeater), then remove this old defeater and attach this new in-defeater. 
@@ -124,19 +135,21 @@ Notes:
 defeatDetection ::
     ( AS.Has (D.LogicLanguage a) env
     , AS.Has (D.Rules a) env
-    , AS.Has (AS.PathSelection a) env  
-    , AS.Has (AS.DefeaterSelection a) env  
+    , AS.Has D.PreferenceMap  env
+    , AS.Has (AS.OrderFunction a) env
+    , AS.Has (AS.CheckNegationFunction a) env
+    , AS.Has (AS.NegationFunction a) env
     , MonadIO m 
-    , MonadReader env m 
+    , MonadReader env m  
+    , Eq a 
     ) => D.Board a -> m (Either (D.Board a) (D.SearchRecord a))
-defeatDetection board@D.Board{..} = undefined 
--- defeatDetection board@D.Board{..} = do 
-        -- (newWaiting, newSeen, newLucky) <- checkLuckySet seen lucky
-        -- let 
-            -- completeLuckers = checkLuckyComplete newLucky 
-        -- if (not . null) completeLuckers 
-            -- then pure $ Right $ selectOneLucker completeLuckers 
-            -- else pure $ Left $ board{lucky=newLucky, waiting=waiting ++newWaiting, seen =newSeen}
+defeatDetection board@D.Board{..} = do 
+        (newWaiting, newSeen, newLucky) <- checkLuckySet seen lucky
+        let 
+            completeLuckers = checkLuckyComplete newLucky 
+        if (not . null) completeLuckers 
+            then pure $ Right $ pickOneFromManyLucker completeLuckers 
+            else pure $ Left $ board{D.lucky=newLucky, D.waiting=waiting ++newWaiting, D.seen =newSeen}
 
 {- 3
 - Given Board from step 2
@@ -147,43 +160,42 @@ defeatDetection board@D.Board{..} = undefined
     - If 'lucky' is empty 
         - go to 6 == Nothing 
 -}
-pathSelection ::
+pathSelection ::forall a env m. 
     ( AS.Has (D.LogicLanguage a) env
     , AS.Has (D.Rules a) env
     , AS.Has (AS.PathSelection a) env  
-    , AS.Has (AS.DefeaterSelection a) env  
     , MonadIO m 
     , MonadReader env m 
     )=> D.Board a-> m (Maybe (D.SearchRecord a, D.Board a))
-pathSelection board@D.Board{..} = undefined 
--- pathSelection board@D.Board{..} = case lucky of 
-    -- [] -> pure Nothing 
-    -- _ ->  do 
-        -- (base, newlucky) <- selectionOne lucky 
-        -- let 
-            -- newBoard = board{D.lucky=newlucky}
-        -- pure $ Just (base,newBoard)
+pathSelection board@D.Board{..} = case lucky of 
+    [] -> pure Nothing 
+    _ ->  do 
+        selectionOne <- Env.grab @(AS.PathSelection a)
+        let 
+            (base, newlucky) = selectionOne lucky 
+            newBoard = board{D.lucky=newlucky}
+        pure $ Just (base,newBoard)
 
-selectionOne ::
-    ( AS.Has (D.LogicLanguage a) env
-    , AS.Has (D.Rules a) env
-    , AS.Has (AS.PathSelection a) env  
-    , AS.Has (AS.DefeaterSelection a) env  
-    , MonadIO m 
-    , MonadReader env m 
-    )=> D.SearchRecords a-> m (D.SearchRecord a, D.SearchRecords a)
-selectionOne srs = undefined  
--- selectionOne srs = do 
-    -- let 
-        -- sortByLength = sortBy (flip compare `on` (length . fst)) srs 
-        -- sortByDefeasible = sortBy (flip compare `on` (length . getDef . fst)) srs 
-    -- pure (head sortByDefeasible, tail sortByDefeasible)  
-    -- where 
-        -- getDef :: D.Path -> D.Language 
-        -- getDef p = 
-            -- let 
-                -- rules = concat p 
-            -- in [r | r<-rules, D.imp r == M.D]
+-- selectionOne ::
+--     ( AS.Has (D.LogicLanguage a) env
+--     , AS.Has (D.Rules a) env
+--     , AS.Has (AS.PathSelection a) env  
+--     , AS.Has (AS.DefeaterSelection a) env  
+--     , MonadIO m 
+--     , MonadReader env m 
+--     )=> D.SearchRecords a-> m (D.SearchRecord a, D.SearchRecords a)
+-- selectionOne srs = undefined  
+-- -- selectionOne srs = do 
+--     -- let 
+--         -- sortByLength = sortBy (flip compare `on` (length . fst)) srs 
+--         -- sortByDefeasible = sortBy (flip compare `on` (length . getDef . fst)) srs 
+--     -- pure (head sortByDefeasible, tail sortByDefeasible)  
+--     -- where 
+--         -- getDef :: D.Path -> D.Language 
+--         -- getDef p = 
+--             -- let 
+--                 -- rules = concat p 
+--             -- in [r | r<-rules, D.imp r == M.D]
 
 {- 4
 - Given SearchRecord selected from step 3, continue construction. 
@@ -197,18 +209,13 @@ selectionOne srs = undefined
 aguConstruction ::
     ( AS.Has (D.LogicLanguage a) env
     , AS.Has (D.Rules a) env
-    , AS.Has (AS.PathSelection a) env  
-    , AS.Has (AS.DefeaterSelection a) env  
     , MonadIO m 
     , MonadReader env m 
+    , Eq a 
     ) => D.SearchRecord a -> m (D.SearchRecords a)
-aguConstruction (p,defeater) = undefined 
--- aguConstruction (p,defeater) = do 
-    -- tmpArg <- pathExtend p 
-    -- pure $ (,defeater) <$> tmpArg 
-
-
-
+aguConstruction (p,defeater) = do 
+    tmpArg <- pathExtend p 
+    pure $ (,defeater) <$> tmpArg 
 
 {- 5 : Defeater Return 
 - Given a complete path record :: PathRecord. 
@@ -219,10 +226,9 @@ aguConstruction (p,defeater) = undefined
         - convert SearchRecord :: (Path, Defeater) to Node [(Path, Defeater)]
         - In this case, existing Defeater must be a non-warranted argument (Saved from waiting). 
 -}
-warranted :: forall a. D.SearchRecord a -> D.Defeater a
-warranted = undefined 
--- warranted (p, Node []) = SW p 
--- warranted record = Node [record]
+warranted :: (Show a) => D.SearchRecord a -> D.Defeater a
+warranted (p, D.NoDefeater) = D.SW [p]
+warranted record = D.Warranted record 
 
 {- 6 
 Known 'lucky' is empty  from step 3
@@ -235,55 +241,63 @@ Known 'lucky' is empty  from step 3
     - Construct the defeater and check defeater return, if the Defeaters is UnWarranted. 
         - go to 9 
 -}
-defeaterChecker ::
+defeaterChain :: forall a env m. 
     ( AS.Has (D.LogicLanguage a) env
     , AS.Has (D.Rules a) env
-    , AS.Has (AS.PathSelection a) env  
-    , AS.Has (AS.DefeaterSelection a) env  
+    , AS.Has D.PreferenceMap  env
+    , AS.Has (AS.OrderFunction a) env
+    , AS.Has (AS.CheckNegationFunction a) env
+    , AS.Has (AS.NegationFunction a) env
+    , AS.Has (AS.PathSelection a) env
+    , AS.Has (AS.DefeaterSelection  a) env
     , MonadIO m 
-    , MonadReader env m 
+    , MonadReader env m  
+    , Eq a
+    , Show a  
     ) => D.Board a-> m (Either (D.Board a) (D.Defeater a))
-defeaterChecker board@D.Board{..} = undefined 
--- defeaterChecker board@D.Board{..} = 
-    -- case waiting of 
-    --     [] -> pure $ Right $ unwarranted futile 
-    --     _ -> do 
-    --         ((p,incArgument), tmpWaiting) <- selectionTwo waiting 
-    --         result <- queryArgument incArgument seen 
-    --         case tellQuery result of 
-    --             D.Warranted ->  do
-    --                 let 
-    --                     newBoard = waitingToFutile (p,result) tmpWaiting board
-    --                 defeaterChecker newBoard 
-    --             D.Unwarranted -> do 
-    --                 let 
-    --                     newBoard = survived (p,result) tmpWaiting board
-    --                 pure $ Left newBoard 
-
-selectionTwo ::
-    ( AS.Has (D.LogicLanguage a) env
-    , AS.Has (D.Rules a) env
-    , AS.Has (AS.PathSelection a) env  
-    , AS.Has (AS.DefeaterSelection a) env  
-    , MonadIO m 
-    , MonadReader env m 
-    )=> D.PathRecords a-> m (D.PathRecord a, D.PathRecords a)
-selectionTwo prs = do 
-    let 
-        sortByLength = sortBy (flip compare `on` (length . fst)) prs 
-        sortByDefeasible = sortBy (flip compare `on` (length . getDef . fst)) prs 
-    pure (head sortByDefeasible, tail sortByDefeasible)  
-    where 
-        getDef :: D.Path a-> D.Language a
-        getDef p = 
+defeaterChain board@D.Board{..} = 
+    case waiting of 
+        [] -> pure $ Right $ unwarranted futile 
+        _ -> do 
+            selectionTwo <- Env.grab @(AS.DefeaterSelection a)
             let 
-                rules = concat p 
-            in [r | r<-rules, D.imp r == D.D]
+                ((p,incArgument), tmpWaiting) = selectionTwo waiting 
+            result <- queryArgument incArgument seen 
+            case result of 
+                (D.Warranted _)->  do
+                    let 
+                        newBoard = waitingToFutile (p,result) tmpWaiting board
+                    defeaterChain newBoard
+                (D.SW _) -> do 
+                    let 
+                        newBoard = waitingToFutile (p,result) tmpWaiting board
+                    defeaterChain newBoard
+                (D.Unwarranted _)-> do 
+                    let 
+                        newBoard = survived (p,result) tmpWaiting board
+                    pure $ Left newBoard 
+-- 
+-- selectionTwo ::
+--     ( AS.Has (D.LogicLanguage a) env
+--     , AS.Has (D.Rules a) env
+--     , AS.Has (AS.PathSelection a) env  
+--     , AS.Has (AS.DefeaterSelection a) env  
+--     , MonadIO m 
+--     , MonadReader env m 
+--     )=> D.PathRecords a-> m (D.PathRecord a, D.PathRecords a)
+-- selectionTwo prs = do 
+--     let 
+--         sortByLength = sortBy (flip compare `on` (length . fst)) prs 
+--         sortByDefeasible = sortBy (flip compare `on` (length . getDef . fst)) prs 
+--     pure (head sortByDefeasible, tail sortByDefeasible)  
+--     where 
+--         getDef :: D.Path a-> D.Language a
+--         getDef p = 
+--             let 
+--                 rules = concat p 
+--             in [r | r<-rules, D.imp r == D.D]
             
--- tellQuery :: D.Defeater -> D.ArgumentStatus 
--- tellQuery (SW _) = Warranted
--- tellQuery (Node [x]) = Warranted 
--- tellQuery (Node _) = Unwarranted
+
 -- {- 7
 -- In step 6, given the defeater is Warranted. We have a new SearchRecord  
 --     - Remove old PathRecord from 'waiting'
@@ -291,16 +305,16 @@ selectionTwo prs = do
 --         - go back to 6 
 -- -}
 -- -- TODO: futile should be [(Path, Defeater)]
--- waitingToFutile :: SearchRecord -> PathRecords -> Board -> Board
--- waitingToFutile newFutile newWaiting oldBoard@Board{..} = oldBoard{waiting=newWaiting, futile=newFutile:futile} 
+waitingToFutile :: D.SearchRecord a-> D.PathRecords a-> D.Board a-> D.Board a
+waitingToFutile newFutile newWaiting oldBoard@D.Board{..} = oldBoard{D.waiting=newWaiting, D.futile=newFutile:futile} 
 
--- {- 8 
--- Given 'lucky' and 'waiting' are all empty.  
--- Then all defeater are warranted. In this case
---     - convert futile :: [(Path,Defeater)] to Node [(Path,Defeater)]
--- -}
--- unwarranted :: SearchRecords -> Defeater 
--- unwarranted = Node 
+{- 8 
+Given 'lucky' and 'waiting' are all empty.  
+Then all defeater are warranted. In this case
+    - convert futile :: [(Path,Defeater)] to Node [(Path,Defeater)]
+-}
+unwarranted ::(Show a) =>  D.SearchRecords a -> D.Defeater a 
+unwarranted = D.Unwarranted 
 
 -- {- 9 
 -- Given that the PathRecord related defeater is unwarranted. We have a new SearchReacord
@@ -308,8 +322,8 @@ selectionTwo prs = do
 --     - Return the new SearRecord 
 --     - go back to 4 (new SearRecord as input)
 -- -}
--- survived ::  SearchRecord -> PathRecords -> Board -> Board
--- survived newLuckyer newWaiting board@Board{..}=board {waiting=newWaiting, lucky =newLuckyer:lucky}
+survived :: D.SearchRecord a-> D.PathRecords a-> D.Board a-> D.Board a
+survived newLuckyer newWaiting board@D.Board{..}=board {D.waiting=newWaiting, D.lucky =newLuckyer:lucky}
 
 
 

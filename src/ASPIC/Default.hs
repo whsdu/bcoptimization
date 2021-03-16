@@ -4,7 +4,7 @@
 module ASPIC.Default where 
 
 import ASPIC.Defeasible (Literal(..),Board(..), Imp(..), name, imp,conC)
-import ASPIC.Abstraction (NegationFunction, CheckNegationFunction, PathSelection, DefeaterSelection)
+import ASPIC.Abstraction (NegationFunction, CheckNegationFunction, PathSelection, DefeaterSelection, OrderFunction)
 import ASPIC.Ordering(Conflict(..))
 
 import Data.Maybe(fromMaybe)
@@ -36,6 +36,10 @@ selectionOne b = undefined
 
 selectionTwo :: DefeaterSelection a 
 selectionTwo b = undefined 
+
+-- | here could provide complicate implementation 
+ordering :: OrderFunction a
+ordering = undefined 
 
 -- lanEqual :: Language -> Language -> Bool 
 -- lanEqual al bl = isElemB && isElemA 
