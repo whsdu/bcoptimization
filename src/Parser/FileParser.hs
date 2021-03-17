@@ -9,10 +9,20 @@ import Data.Maybe(fromJust, fromMaybe)
 import Data.Text(isInfixOf,pack)
 
 import qualified ASPIC.Defeasible  as D 
-    (Literal (..), Language , LanguageMap,StrictRules(..), DefeasibleRules(..), RdPrefMap(..), 
-    KnwlPrefMap(..), PreferenceMap, name,body,imp,conC)
-import Run.Env
-import ASPIC.Ordering 
+    ( Name, Literal (..), Language , Rules(..), Imp(..), LogicLanguage(..), Rules(..),
+     PreferenceMap, name,body,imp,conC, getLogicLanguage, LiteralMap,PreferenceMap )
+
+import ASPIC.Abstraction (AS(..), NegationFunction)
+import qualified ASPIC.Default as Default (neg,isNegation, selectionOne, selectionTwo, ordering)
+import ASPIC.Ordering
+import Toolkits.Common(rmdups) 
+
+-- | TODOS:
+{-
+1. The neg being used in chainingRule function should be better arranged, is it necessary to included it here ?
+    The relation between negation and checknegation is quite tricky 
+-}
+
 
 -- | Transitional data type being used to bridge the gap between file and list of Literal. 
 -- File contains lines of strings that represent rules. 
@@ -34,41 +44,51 @@ type KnowledgeSpace = [Knowledge]
 TODOs:
 Language space in env does not contains neg of rules. 
 -}
-parseDefaultEnv :: FilePath -> IO Env
+parseDefaultEnv :: FilePath -> IO (AS ())
 parseDefaultEnv filePath = do 
     k <- fileToKnowledge filePath
-    (rdMap, knMap) <- fileToPrefMap filePath
+    prefMap <- fileToPrefMap filePath
     let 
-        l = k2l k 
-        r = chainingRule l 
-    pure $ mkEnv r rdMap knMap 
+        l = k2l k
+        r = chainingRule l Default.neg 
+    pure $ mkDefEnv r prefMap
 
-stringToEnv :: String -> IO Env 
-stringToEnv content = do 
-    k <- stringToKnowledge content 
-    (rdMap, knMap) <- stringToPrefMap content 
+-- fileToPrefMap :: FilePath -> IO (L.RdPrefMap, L.KnwlPrefMap)
+
+-- stringToEnv :: String -> IO Env 
+-- stringToEnv content = do 
+--     k <- stringToKnowledge content 
+--     (rdMap, knMap) <- stringToPrefMap content 
+--     let 
+--         l = k2l k 
+--         r = chainingRule l 
+--     pure $ mkEnv r rdMap knMap 
+
+parseLiteralMap :: AS () -> Map.HashMap D.Name (D.Literal ())
+parseLiteralMap as = 
     let 
-        l = k2l k 
-        r = chainingRule l 
-    pure $ mkEnv r rdMap knMap 
-
-parseLiteralMap :: Env -> Map.HashMap M.Name L.Literal
-parseLiteralMap env = 
-    let 
-        language = envLangSpace env 
-    in Map.fromList $ zip (L.name <$> language ) language
+        language = D.getLogicLanguage . asLanguage $ as 
+    in Map.fromList $ zip (D.name <$> language ) language
 
 
-parsePreferenceMap :: Env -> L.PreferenceMap
-parsePreferenceMap env = 
-    let
-        rdMap = L.getRdPrefMap . envRdPrefMap $ env
-        knMap = L.getKnwlPrefMap . envKnwlPrefMap $ env 
-    in Map.union rdMap knMap 
 
 
-parseQueryLiteral :: String -> Map.HashMap M.Name L.Literal -> L.Literal
-parseQueryLiteral qName lm = fromJust $ Map.lookup qName lm 
+
+
+
+
+
+
+-- parsePreferenceMap :: Env -> L.PreferenceMap
+-- parsePreferenceMap env = 
+--     let
+--         rdMap = L.getRdPrefMap . envRdPrefMap $ env
+--         knMap = L.getKnwlPrefMap . envKnwlPrefMap $ env 
+--     in Map.union rdMap knMap 
+
+
+-- parseQueryLiteral :: String -> Map.HashMap M.Name L.Literal -> L.Literal
+-- parseQueryLiteral qName lm = fromJust $ Map.lookup qName lm 
 
 -- | TODOs: 
 
@@ -102,7 +122,7 @@ parseWord w =
     in Knowledge ruleName premisesName impName conclusionName preferName
 
 
-k2l :: KnowledgeSpace -> L.LanguageMap 
+k2l :: KnowledgeSpace -> D.LiteralMap ()
 k2l knowledges = constructLS knowledges Map.empty
     where 
         constructLS (k:ks) lsAcc = 
@@ -115,7 +135,7 @@ k2l knowledges = constructLS knowledges Map.empty
                 updateRuleAcc = insertRuleToLanguageSpace rName iName primLiterals concLiteral updateAtomAcc
             in constructLS ks updateRuleAcc
         constructLS [] lsAcc  = lsAcc
-        insertAtomsToLanguageSpace :: String -> [String] -> L.LanguageMap -> (L.LanguageMap, L.Language, L.Literal)
+        insertAtomsToLanguageSpace :: String -> [String] -> D.LiteralMap () -> (D.LiteralMap (), D.Language (), D.Literal ())
         insertAtomsToLanguageSpace concName priNames ls = 
             let 
                 (accPrim, primLiterals) = foldr insertOneAtom (ls,[]) priNames 
@@ -125,48 +145,48 @@ k2l knowledges = constructLS knowledges Map.empty
                             case Map.lookup n ll of 
                                 Just b -> (ll, b:lbs)
                                 Nothing -> 
-                                    let newl = L.Atom n 
+                                    let newl = D.Atom n ()
                                     in (Map.insert n newl ll, newl:lbs)
         insertRuleToLanguageSpace 
             :: String
             -> String 
-            -> L.Language
-            -> L.Literal  
-            -> L.LanguageMap 
-            -> L.LanguageMap
+            -> D.Language ()
+            -> D.Literal ()
+            -> D.LiteralMap ()  
+            -> D.LiteralMap () 
         insertRuleToLanguageSpace ruleName imp primies conclusion lspace =
             let 
-                impSym = if imp == "->" then M.S else M.D 
-                bodies = if head primies == L.Atom "" then [] else primies 
-                ruleLiteral = L.Rule ruleName bodies impSym conclusion 
+                impSym = if imp == "->" then D.S else D.D 
+                bodies = if head primies == D.Atom "" () then [] else primies 
+                ruleLiteral = D.Rule ruleName bodies impSym conclusion 
             in Map.insert ruleName ruleLiteral lspace 
 
-chainingRule :: L.LanguageMap -> L.LanguageMap 
-chainingRule knowledgeMap = 
+chainingRule :: D.LiteralMap () -> NegationFunction () -> D.LiteralMap () 
+chainingRule knowledgeMap neg = 
     let 
-        ruleList = [ km | km <- Map.toList knowledgeMap , (L.imp . snd) km == M.D || (L.imp . snd) km == M.S] 
-        ruleMap = Map.fromList [ km | km <- Map.toList knowledgeMap , (L.imp . snd) km == M.D || (L.imp . snd) km == M.S] 
+        ruleList = [ km | km <- Map.toList knowledgeMap , (D.imp . snd) km == D.D || (D.imp . snd) km == D.S] 
+        ruleMap = Map.fromList [ km | km <- Map.toList knowledgeMap , (D.imp . snd) km == D.D || (D.imp . snd) km == D.S] 
     in Map.fromList $ chaining ruleMap <$> ruleList
     where 
         chaining rm tp = 
             let
                 key = fst tp 
                 p = snd tp 
-                name = L.name p 
-                imp = L.imp p 
-                body = L.body p 
-                conC = L.conC p 
-                newBody = searchRules rm <$> body 
-                newConc = searchRules rm conC 
-            in (key, L.Rule name newBody imp newConc)
-        searchRules :: L.LanguageMap -> L.Literal -> L.Literal 
-        searchRules rm l = 
+                name = D.name p 
+                imp = D.imp p 
+                body = D.body p 
+                conC = D.conC p 
+                newBody = searchRules rm neg <$> body 
+                newConc = searchRules rm neg conC 
+            in (key, D.Rule name newBody imp newConc)
+        searchRules :: D.LiteralMap () -> NegationFunction () -> D.Literal () -> D.Literal ()
+        searchRules rm neg l = 
             case l of 
-                L.Rule {} -> l 
-                L.Atom "" -> l 
-                L.Atom _ -> 
+                D.Rule {} -> l 
+                D.Atom "" () -> l 
+                D.Atom _ _ -> 
                     let 
-                        name = L.name l 
+                        name = D.name l 
                     in 
                         if head name == '!' 
                             then 
@@ -175,17 +195,18 @@ chainingRule knowledgeMap =
                                     rO = Map.lookup oName rm 
                                 in case rO of 
                                     Nothing -> l 
-                                    Just rule -> M.neg rule 
+                                    Just rule -> neg rule 
                             else 
                                 let r = Map.lookup name rm 
                                 in fromMaybe l r 
 
--- | 
--- 1. preference map of rules and premises are separated. 
--- 2. no record of strict rules because this is not part of any preference set selection methods (weakest-link or last-link).
--- TODOs: 
--- improve the separation method of rules and premises. 
-fileToPrefMap :: FilePath -> IO (L.RdPrefMap, L.KnwlPrefMap)
+-- -- | 
+-- -- 1. preference map of rules and premises are separated. 
+-- -- 2. no record of strict rules because this is not part of any preference set selection methods (weakest-link or last-link).
+-- -- TODOs: 
+-- -- improve the separation method of rules and premises. 
+
+fileToPrefMap :: FilePath -> IO D.PreferenceMap
 fileToPrefMap filePath = do 
     handle <- openFile filePath  ReadMode
     contents <- hGetContents handle 
@@ -193,33 +214,34 @@ fileToPrefMap filePath = do
         records = removeComment( lines contents )
         premisesLines = [r | r <- records,(":=" `isInfixOf` pack r) || (":-" `isInfixOf` pack r)]
         rulesLines = [r | r <- records, r `notElem` premisesLines && not ("->" `isInfixOf` pack r)]
-        rdMap = L.RdPrefMap $ Map.fromList $ parsePre <$> rulesLines
-        kwMap = L.KnwlPrefMap $ Map.fromList $ parsePre <$> premisesLines
-    pure (rdMap,kwMap)
+        rdMap =  Map.fromList $ parsePre <$> rulesLines
+        kwMap =  Map.fromList $ parsePre <$> premisesLines
+        prefMap = Map.union rdMap kwMap 
+    pure prefMap 
   where 
-      parsePre :: String -> (M.Name,Int)
+      parsePre :: String -> (D.Name,Int)
       parsePre s = 
           let 
               name = head $ splitOn ":" s 
-              pre = read . last $ splitOn "," s
+              pre = read . last $ splitOn "," s 
           in (name,pre)
 
-stringToPrefMap :: String -> IO (L.RdPrefMap, L.KnwlPrefMap)
-stringToPrefMap contents = do 
-    let 
-        records = removeComment( lines contents )
-        premisesLines = [r | r <- records,(":=" `isInfixOf` pack r) || (":-" `isInfixOf` pack r)]
-        rulesLines = [r | r <- records, r `notElem` premisesLines && not ("->" `isInfixOf` pack r)]
-        rdMap = L.RdPrefMap $ Map.fromList $ parsePre <$> rulesLines
-        kwMap = L.KnwlPrefMap $ Map.fromList $ parsePre <$> premisesLines
-    pure (rdMap,kwMap)
-  where 
-      parsePre :: String -> (M.Name,Int)
-      parsePre s = 
-          let 
-              name = head $ splitOn ":" s 
-              pre = read . last $ splitOn "," s
-          in (name,pre)
+-- stringToPrefMap :: String -> IO (L.RdPrefMap, L.KnwlPrefMap)
+-- stringToPrefMap contents = do 
+--     let 
+--         records = removeComment( lines contents )
+--         premisesLines = [r | r <- records,(":=" `isInfixOf` pack r) || (":-" `isInfixOf` pack r)]
+--         rulesLines = [r | r <- records, r `notElem` premisesLines && not ("->" `isInfixOf` pack r)]
+--         rdMap = L.RdPrefMap $ Map.fromList $ parsePre <$> rulesLines
+--         kwMap = L.KnwlPrefMap $ Map.fromList $ parsePre <$> premisesLines
+--     pure (rdMap,kwMap)
+--   where 
+--       parsePre :: String -> (M.Name,Int)
+--       parsePre s = 
+--           let 
+--               name = head $ splitOn ":" s 
+--               pre = read . last $ splitOn "," s
+--           in (name,pre)
 
 -- | Remove 
 -- 1. # : comment line 
@@ -228,17 +250,18 @@ stringToPrefMap contents = do
 removeComment :: [String] -> [String]
 removeComment sl = [s | s<-sl ,'#' `notElem` s && ' ' `notElem` s, s /= ""] 
 
-mkEnv :: L.LanguageMap -> L.RdPrefMap -> L.KnwlPrefMap -> Env 
-mkEnv lm rdMap knMap= 
+mkDefEnv :: D.LiteralMap () -> D.PreferenceMap -> AS ()
+mkDefEnv lm pm = 
     let 
-        literalList = snd <$> Map.toList lm 
-        strictRule = L.StrictRules [ l | l <- literalList, L.imp l == M.S]
-        defeasibleRule = L.DefeasibleRules [ l | l <- literalList, L.imp l == M.D]
-        atoms = M.rmdups [ l | l <- concat (L.body <$> literalList) ++ (L.conC <$> literalList), L.imp l == M.N]
-    in Env 
-        (atoms ++ L.getStrictRules strictRule ++ L.getDefeasibleRules defeasibleRule) 
-        strictRule 
-        defeasibleRule 
-        rdMap 
-        knMap 
-        weakestEli 
+        rules = snd <$> Map.toList lm 
+        atoms = rmdups [ l | l <- concat (D.body <$> rules) ++ (D.conC <$> rules), D.imp l == D.N]
+        ls = rules ++atoms 
+    in AS  
+        (D.LogicLanguage ls)
+        (D.Rules rules)
+        pm 
+        Default.selectionOne
+        Default.selectionTwo
+        Default.neg 
+        Default.isNegation
+        Default.ordering 

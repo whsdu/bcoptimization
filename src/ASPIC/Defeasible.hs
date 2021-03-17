@@ -13,16 +13,13 @@ module ASPIC.Defeasible
     , Argument
     , Imp(..)
     , Name
-    , Rules(..)
-    , LogicLanguage(..)
     , Board(..)
     , SearchRecord
     , SearchRecords
     , PathRecord
     , PathRecords
     , Defeater(..)
-    , PreferenceMap
-    -- , LiteralMap
+
     -- , StrictRules (..)
     -- , DefeasibleRules(..)
     -- , PreferenceMap
@@ -34,6 +31,10 @@ module ASPIC.Defeasible
     , conC
     , statement
     , branchDef
+    , PreferenceMap
+    , LiteralMap
+    , Rules(..)
+    , LogicLanguage(..)
     ) where 
     
 
@@ -95,6 +96,9 @@ instance (Show a) => Show (Rules a) where
 
 instance (Show a) => Show (LogicLanguage a) where 
     show  = show . getLogicLanguage
+
+type LiteralMap a=  Map.HashMap Name (Literal a) 
+type PreferenceMap = Map.HashMap Name Int 
 
 {-Path-}
 -- A list of sets of rules 
@@ -179,8 +183,7 @@ instance Eq Imp where
 
 -- | LanguageMap is a dictionary used to query Literal with given name
 
-type LiteralMap = forall a . Map.HashMap Name (Literal a) 
-type PreferenceMap = Map.HashMap Name Int 
+
 -- newtype StrictRules = StrictRules {getStrictRules :: Language}
 -- newtype DefeasibleRules = DefeasibleRules {getDefeasibleRules :: Language}
 

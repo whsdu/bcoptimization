@@ -29,7 +29,11 @@ class Has field env  where
     obtain :: env -> field 
 
 instance (Show a) => Show (AS a) where 
-    show AS{..} = show asLanguage ++ show asRules
+    show AS{..} = 
+        "Logic Language : " ++ show asLanguage ++ "\n" ++ 
+        "length: " ++ show ((length . D.getLogicLanguage) asLanguage) ++ "\n" ++ 
+        "Rules are: " ++ show asRules ++ "\n" ++ 
+        "length: " ++ show ((length . D.getRules) asRules) 
 
 instance Has (D.LogicLanguage a) (AS a) where obtain  = asLanguage
 
