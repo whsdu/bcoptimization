@@ -4,10 +4,12 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE QuantifiedConstraints #-}
-{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE RankNTypes #-}
+-- {-# LANGUAGE ConstraintKinds #-}
 
 module ASPIC.Abstraction where 
 
+import Data.HashMap.Strict (toList)
 import Data.List (group, sort)
 import Control.Monad.IO.Class 
 import Control.Monad.Reader
@@ -33,7 +35,9 @@ instance (Show a) => Show (AS a) where
         "Logic Language : " ++ show asLanguage ++ "\n" ++ 
         "length: " ++ show ((length . D.getLogicLanguage) asLanguage) ++ "\n" ++ 
         "Rules are: " ++ show asRules ++ "\n" ++ 
-        "length: " ++ show ((length . D.getRules) asRules) 
+        "length: " ++ show ((length . D.getRules) asRules)  ++ "\n" ++ 
+        "Preference Map is: " ++ show asPreferenceMap ++ "\n" ++ 
+        "length: " ++ show ((length . toList) asPreferenceMap)
 
 instance Has (D.LogicLanguage a) (AS a) where obtain  = asLanguage
 
@@ -42,6 +46,8 @@ instance Has (D.Rules a) (AS a) where obtain = asRules
 instance Has D.PreferenceMap  (AS a) where obtain = asPreferenceMap
 
 instance Has (PathSelection a) (AS a) where obtain = asPathSelection 
+
+instance Has (DefeaterSelection a) (AS a) where obtain = asDefeaterSelection
 
 instance Has (NegationFunction a) (AS a) where obtain = asNegationFunction
 
@@ -63,5 +69,5 @@ type DefeaterSelection a =  D.PathRecords a -> (D.PathRecord a, D.PathRecords a)
 -- ...妈蛋，还有n多要搞哦
 type NegationFunction a =  D.Literal a -> D.Literal a 
 type CheckNegationFunction a =  D.Literal a -> D.Literal a -> Bool 
-type OrderFunction a = D.Path a -> D.Path a -> Bool 
+type OrderFunction a = D.PreferenceMap  -> D.Path a -> D.Path a -> Bool 
 

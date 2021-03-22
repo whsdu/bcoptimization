@@ -70,15 +70,6 @@ parseLiteralMap as =
         language = D.getLogicLanguage . asLanguage $ as 
     in Map.fromList $ zip (D.name <$> language ) language
 
-
-
-
-
-
-
-
-
-
 -- parsePreferenceMap :: Env -> L.PreferenceMap
 -- parsePreferenceMap env = 
 --     let
@@ -87,8 +78,8 @@ parseLiteralMap as =
 --     in Map.union rdMap knMap 
 
 
--- parseQueryLiteral :: String -> Map.HashMap M.Name L.Literal -> L.Literal
--- parseQueryLiteral qName lm = fromJust $ Map.lookup qName lm 
+parseQueryLiteral :: String -> Map.HashMap D.Name (D.Literal ())-> D.Literal ()
+parseQueryLiteral qName lm = fromJust $ Map.lookup qName lm 
 
 -- | TODOs: 
 

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 880d65541d06e62e15f21ce5c3aa4213349417f6026f8bd9923ab06cef0a6c69
+-- hash: 4aad6752d5909fd80e2d6e9973270a5291b59fef1c780c46af5ef2f9b442cb73
 
 name:           BCOptimization
 version:        0.1.0.0
@@ -36,6 +36,7 @@ library
       Dung.Argument
       Lib
       Parser.FileParser
+      Run.DemoHelp
       Run.Env
       Toolkits.Common
   other-modules:

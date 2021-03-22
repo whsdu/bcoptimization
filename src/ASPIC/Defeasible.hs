@@ -45,15 +45,25 @@ import qualified GHC.List as GHC (head)
 -- `Rule` is constructor of `Ordinary Premises`, `Axiom Premises`, `Strict Rules` & `Defeasible Rules`. 
 -- `Atom` is constructor of conclusion other than above `Premises` or `Rules`.   
 -- `n` introduced in paper maps a rule to a literal, it is not necessary here when Literal is defined recursively like this.
--- TODO: actually, Atom could also be represented by Rule, with 'Imp` being 'N', this maybe over engineered 
--- If it is possible maybe use type programming to handle this ?
+
 
 -- data Statement a = Statement a | Deduction
+
+-- TODO: 
+{-
+    1. actually, Atom could also be represented by Rule, with 'Imp` being 'N', this maybe over engineered 
+    If it is possible maybe use type programming to handle this ?
+-}
 
 data Literal a where
     Atom :: (Show a, Eq a) =>  Name -> a -> Literal a
     Rule ::  (Show a, Eq a) => Name -> [Literal a] -> Imp -> Literal a-> Literal a 
 
+-- | TODO:
+{-
+    1. 'a' should also be included in the Show instance.
+    2. The same with other instance.  
+-}
 instance (Show a) => Show (Literal a) where
     show (Rule n b i h) = n ++ ": " ++ bs ++ im ++ head
         where
@@ -89,7 +99,7 @@ type Language a = [Literal a]
 Wrapper of Language so that we could tell the difference between Rules and Language.
 -}
 newtype Rules a = Rules {getRules :: Language a }
-newtype LogicLanguage a= LogicLanguage {getLogicLanguage :: Language a}
+newtype LogicLanguage a = LogicLanguage {getLogicLanguage :: Language a}
 
 instance (Show a) => Show (Rules a) where 
     show  = show . getRules

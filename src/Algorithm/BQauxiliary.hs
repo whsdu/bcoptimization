@@ -98,7 +98,7 @@ checkLuckySet seen (r:rs) = do
     checkConflict p (Ord.Rebut (a,l)) = do 
         let 
             defP = D.branchDef p [l]
-        necPaths <- getNecPath l
+        necPaths <- getNecPath a
         if 
             null defP 
             then pure []
@@ -128,7 +128,7 @@ checkLuckySet seen (r:rs) = do
     checkDefeat defenderPath attackPath = do 
         prefMap <- Env.grab @D.PreferenceMap 
         ordering <- Env.grab @(AS.OrderFunction a)
-        pure $ ordering attackPath defenderPath 
+        pure $ ordering prefMap attackPath defenderPath 
 
 {-Construction Auxiliary-}
 initAgu :: 
