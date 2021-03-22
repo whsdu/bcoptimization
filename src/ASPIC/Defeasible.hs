@@ -148,12 +148,12 @@ type PathRecords a = [PathRecord a]
 data Board a = Board {lucky :: SearchRecords a, waiting :: PathRecords a, futile :: SearchRecords a, seen :: Language a}
 
 instance (Show a) => Show (Defeater a) where 
-    show (SW p) = show p 
+    show (SW p) = "Self-Warranted : " ++ show p 
     show NoDefeater = "NO-Defeater"
     show (Warranted sub) = 
-        "Warranted Node: " ++ "\n" ++ showSingleTree sub ""
+        "Warranted : " ++ showSingleTree sub "" ++ "\n" 
     show (Unwarranted sub) = 
-        "Unwarranted Node: " ++ "\n" ++ showSubTree sub
+        "Unwarranted : " ++ showSubTree sub ++ "\n"
 
 showSubTree ::  (Show a) => [(Path a, Defeater a)] -> String 
 showSubTree = foldr showSingleTree "" 
@@ -161,16 +161,16 @@ showSingleTree :: (Show a) =>  (Path a, Defeater a) -> String -> String
 showSingleTree (p,d) s = 
     let
         content =  
-            "Path:" ++ show p ++ "\n" ++ 
-            "defeater" ++ show d 
+            "\t" ++ "Path: " ++ show p ++ 
+            "\t" ++ "defeater: " ++ show d ++ "\n"
     in content ++ s 
 
 instance (Show a) => Show (Board a) where 
     show Board{..} = 
-        "LUCKY: " ++ show lucky ++ "/n" ++
-        "WAITING: " ++ show waiting ++ "/n" ++ 
-        "FUTILE: " ++ show futile ++ "/n" ++ 
-        "SEEN: " ++ show seen 
+        "LUCKY: " ++ show lucky ++ "\n" ++
+        "WAITING: " ++ show waiting ++ "\n" ++ 
+        "FUTILE: " ++ show futile ++ "\n" ++ 
+        "SEEN: " ++ show seen ++ "\n"
 
 
 {-

@@ -38,10 +38,12 @@ checkLuckySet ::
     , MonadIO m 
     , MonadReader env m  
     , Eq a 
+    , Show a 
     ) => D.Language a-> D.SearchRecords a-> m (D.PathRecords a, D.Language a, D.SearchRecords a)
 checkLuckySet seen [] = pure ([],seen,[])
 checkLuckySet seen (r:rs) = do 
     checkResult <- checkLucker seen r 
+    liftIO $ print checkResult
     case checkResult of 
         Right (sr,newSeen) -> do 
             (newWait, ss, nLucky) <- checkLuckySet newSeen rs 
@@ -62,7 +64,8 @@ checkLuckySet seen (r:rs) = do
         , AS.Has (AS.NegationFunction a) env
         , MonadIO m 
         , MonadReader env m 
-        , Eq a  
+        , Eq a
+        , Show a
         ) => D.Language a-> D.SearchRecord a-> m (Either (D.PathRecord a, D.Language a) (D.SearchRecord a, D.Language a))
     checkLucker seen sr@(p,_) = do                  
         lang <- D.getLogicLanguage  <$> Env.grab @(D.LogicLanguage a)
@@ -72,6 +75,7 @@ checkLuckySet seen (r:rs) = do
         checkedConflict <- mapM (uncurry Ord.conflict) [(v,l) | v<-validP, l<-localRules]
         let 
             validConflict = filter (/= Ord.Peace) checkedConflict 
+        liftIO $ print validConflict
         if null validConflict 
             then pure $ Right (sr, seen)
             else do 
@@ -92,20 +96,23 @@ checkLuckySet seen (r:rs) = do
         , MonadIO m 
         , MonadReader env m 
         , Eq a 
+        , Show a 
         ) => D.Path a-> Ord.Conflict a-> m (D.Language a)
     checkConflict _ (Ord.Undercut (a,l))= pure [a]
     checkConflict _ Ord.Peace = pure [] 
     checkConflict p (Ord.Rebut (a,l)) = do 
         let 
-            defP = D.branchDef p [l]
+            defP = D.branchDef p [D.conC l]
         necPaths <- getNecPath a
+        liftIO $ print necPaths
+        liftIO $ print defP
         if 
             null defP 
             then pure []
             else  do 
                 rs <- mapM (checkDefeat defP) necPaths 
                 if or rs 
-                    then pure [l] 
+                    then pure [a] 
                     else pure []   
     getNecPath :: 
         ( AS.Has (D.LogicLanguage a) env

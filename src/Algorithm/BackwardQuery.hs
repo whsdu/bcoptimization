@@ -76,6 +76,8 @@ defeatChain ::
     , Show a 
     )  => D.Board a -> m (D.Defeater a)
 defeatChain step1Board = do 
+    liftIO $ putStrLn "Enter DCHAIN!"
+    liftIO $ print ("Inital Board: " ++ show step1Board ++ "\n")
     step1 <- defeatDetection step1Board 
     liftIO $ print step1
     case step1 of 
@@ -142,6 +144,7 @@ defeatDetection ::
     , MonadIO m 
     , MonadReader env m  
     , Eq a 
+    , Show a
     ) => D.Board a -> m (Either (D.Board a) (D.SearchRecord a))
 defeatDetection board@D.Board{..} = do 
         (newWaiting, newSeen, newLucky) <- checkLuckySet seen lucky

@@ -13,6 +13,12 @@ import Control.Monad.Reader
 
 data Conflict a = Rebut (Literal a, Literal a)| Undercut (Literal a, Literal a)| Peace deriving (Eq)
 
+instance Show a => Show (Conflict a) where 
+    show (Rebut (a, d)) = show a ++ " rebuts " ++ show d 
+    show (Undercut (a, d)) = show a ++ " undercuts " ++ show d 
+    show Peace = "Peace!"
+
+
 conflict :: 
     ( Eq a
     , MonadReader env m 
