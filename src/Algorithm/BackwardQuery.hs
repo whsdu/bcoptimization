@@ -76,8 +76,9 @@ defeatChain ::
     , Show a 
     )  => D.Board a -> m (D.Defeater a)
 defeatChain step1Board = do 
+    liftIO $ putStrLn ""
     liftIO $ putStrLn "Enter DCHAIN!"
-    liftIO $ print ("Inital Board: " ++ show step1Board ++ "\n")
+    liftIO $ putStrLn ("Inital Board: " ++ show step1Board )
     step1 <- defeatDetection step1Board 
     liftIO $ print step1
     case step1 of 
@@ -266,6 +267,8 @@ defeaterChain board@D.Board{..} =
             let 
                 ((p,incArgument), tmpWaiting) = selectionTwo waiting 
             result <- queryArgument incArgument seen 
+            liftIO $ print ("Reulst: " ++ show result)
+            liftIO $ print ("TmpWaiting: " ++ show tmpWaiting)
             case result of 
                 (D.Warranted _)->  do
                     let 

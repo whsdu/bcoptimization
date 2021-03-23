@@ -47,7 +47,7 @@ checkLuckySet ::
 checkLuckySet seen [] = pure ([],seen,[])
 checkLuckySet seen (r:rs) = do 
     checkResult <- checkLucker seen r 
-    liftIO $ print checkResult
+    liftIO $ print ("check result: " ++ show checkResult)
     case checkResult of 
         Right (sr,newSeen) -> do 
             (newWait, ss, nLucky) <- checkLuckySet newSeen rs 
@@ -115,6 +115,7 @@ checkLuckySet seen (r:rs) = do
             then pure []
             else  do 
                 rs <- mapM (checkDefeat defP) necPaths 
+                liftIO $ print rs
                 if or rs 
                     then pure [a] 
                     else pure []   

@@ -151,9 +151,9 @@ instance (Show a) => Show (Defeater a) where
     show (SW p) = "Self-Warranted : " ++ show p 
     show NoDefeater = "NO-Defeater"
     show (Warranted sub) = 
-        "Warranted : " ++ showSingleTree sub "" ++ "\n" 
+        "Warranted : " ++ showSingleTree sub "" 
     show (Unwarranted sub) = 
-        "Unwarranted : " ++ showSubTree sub ++ "\n"
+        "Unwarranted : " ++ showSubTree sub 
 
 showSubTree ::  (Show a) => [(Path a, Defeater a)] -> String 
 showSubTree = foldr showSingleTree "" 
@@ -161,16 +161,16 @@ showSingleTree :: (Show a) =>  (Path a, Defeater a) -> String -> String
 showSingleTree (p,d) s = 
     let
         content =  
-            "\t" ++ "Path: " ++ show p ++ 
-            "\t" ++ "defeater: " ++ show d ++ "\n"
+            "Path: " ++ show p ++ 
+            "defeater: " ++ show d 
     in content ++ s 
 
 instance (Show a) => Show (Board a) where 
     show Board{..} = 
         "LUCKY: " ++ show lucky ++ "\n" ++
-        "WAITING: " ++ show waiting ++ "\n" ++ 
-        "FUTILE: " ++ show futile ++ "\n" ++ 
-        "SEEN: " ++ show seen ++ "\n"
+        "WAITING: " ++ show waiting ++ "\n" ++
+        "FUTILE: " ++ show futile ++ "\n" ++
+        "SEEN: " ++ show seen ++ "\n" 
 
 
 {-
