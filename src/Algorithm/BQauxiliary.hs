@@ -19,6 +19,10 @@ import qualified ASPIC.Ordering as Ord
 import qualified Run.Env as Env 
 import qualified Toolkits.Common as TOOL
 
+-- | TODO:
+{-
+    1. seen need to include both defeater and defeated proposition. 
+-}
 
 {-
 lucky :: SearchRecrods 
