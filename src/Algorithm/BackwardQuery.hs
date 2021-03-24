@@ -36,7 +36,7 @@ query ::
     , MonadReader env m  
     , Eq a
     , Show a 
-    ) => D.Argument a->  m (D.Defeater a)
+    ) => D.Argument a->  m (D.Defeater a, D.Language a)
 query incArgu = queryArgument incArgu []
 
 -- | rewrite query 
@@ -53,7 +53,7 @@ queryArgument ::
     , MonadReader env m  
     , Eq a
     , Show a  
-    ) => D.Argument a-> D.Language a->  m (D.Defeater a)
+    ) => D.Argument a-> D.Language a->  m (D.Defeater a, D.Language a)
 queryArgument incArgu accSeen = do 
     let 
         tmpBoard = initialBoard incArgu 
@@ -74,7 +74,7 @@ defeatChain ::
     , MonadReader env m  
     , Eq a
     , Show a 
-    )  => D.Board a -> m (D.Defeater a)
+    )  => D.Board a -> m (D.Defeater a, D.Language a)
 defeatChain step1Board = do 
     liftIO $ putStrLn ""
     liftIO $ putStrLn "Enter DCHAIN!"
@@ -82,7 +82,7 @@ defeatChain step1Board = do
     step1 <- defeatDetection step1Board 
     liftIO $ print step1
     case step1 of 
-        Right p -> pure $ warranted p 
+        Right p -> pure  (warranted p, D.seen step1Board)
         Left step2Board -> do 
             step3 <- pathSelection step2Board 
             case step3 of 
@@ -95,7 +95,7 @@ defeatChain step1Board = do
                 Nothing -> do 
                     step6 <- defeaterChain step2Board 
                     case step6 of 
-                        Right unw -> pure unw 
+                        Right unw -> pure (unw, D.seen step2Board)
                         Left step6Board -> defeatChain step6Board
 
 
@@ -266,21 +266,21 @@ defeaterChain board@D.Board{..} =
             selectionTwo <- Env.grab @(AS.DefeaterSelection a)
             let 
                 ((p,incArgument), tmpWaiting) = selectionTwo waiting 
-            result <- queryArgument incArgument seen 
+            (result,defeaterSeen) <- queryArgument incArgument seen 
             liftIO $ print ("Reulst: " ++ show result)
             liftIO $ print ("TmpWaiting: " ++ show tmpWaiting)
             case result of 
                 (D.Warranted _)->  do
                     let 
-                        newBoard = waitingToFutile (p,result) tmpWaiting board
+                        newBoard = waitingToFutile (p,result) tmpWaiting defeaterSeen board
                     defeaterChain newBoard
                 (D.SW _) -> do 
                     let 
-                        newBoard = waitingToFutile (p,result) tmpWaiting board
+                        newBoard = waitingToFutile (p,result) tmpWaiting defeaterSeen board
                     defeaterChain newBoard
                 (D.Unwarranted _)-> do 
                     let 
-                        newBoard = survived (p,result) tmpWaiting board
+                        newBoard = survived (p,result) tmpWaiting defeaterSeen board
                     pure $ Left newBoard 
 -- 
 -- selectionTwo ::
@@ -311,8 +311,9 @@ defeaterChain board@D.Board{..} =
 --         - go back to 6 
 -- -}
 -- -- TODO: futile should be [(Path, Defeater)]
-waitingToFutile :: D.SearchRecord a-> D.PathRecords a-> D.Board a-> D.Board a
-waitingToFutile newFutile newWaiting oldBoard@D.Board{..} = oldBoard{D.waiting=newWaiting, D.futile=newFutile:futile} 
+waitingToFutile :: D.SearchRecord a-> D.PathRecords a->D.Language a-> D.Board a-> D.Board a
+waitingToFutile newFutile newWaiting defeaterSeen oldBoard@D.Board{..} = 
+    oldBoard{D.waiting=newWaiting, D.futile=newFutile:futile, D.seen=seen++defeaterSeen} 
 
 {- 8 
 Given 'lucky' and 'waiting' are all empty.  
@@ -328,322 +329,6 @@ unwarranted = D.Unwarranted
 --     - Return the new SearRecord 
 --     - go back to 4 (new SearRecord as input)
 -- -}
-survived :: D.SearchRecord a-> D.PathRecords a-> D.Board a-> D.Board a
-survived newLuckyer newWaiting board@D.Board{..}=board {D.waiting=newWaiting, D.lucky =newLuckyer:lucky}
-
-
-
-
--- {-Step2 defeatDetection Auxiliaries-}
-
--- -- | replace defeatFilter
--- -- checkLuckySet :: Applicative f => b -> [a1] -> f ([a2], b, [a3])
--- checkLuckySet ::
---     ( Has D.Language env  
---     , UseRuleOnly env 
---     -- , Has D.RdPrefMap env 
---     -- , Has D.KnwlPrefMap env 
---     , MonadReader env m
---     , MonadIO m 
---     , OrderingContext env 
---     ) => D.Language -> SearchRecords -> m (PathRecords, D.Language, SearchRecords)
--- checkLuckySet seen [] = pure ([],seen,[])
--- checkLuckySet seen (r:rs) = do 
---     (re, newSeen) <- checkLucker seen r 
---     (newwait, ss , nlucy) <- checkLuckySet newSeen rs 
---     case re of 
---         Right sr -> pure (newwait,ss, sr : nlucy)
---         Left pr -> pure (pr : newwait, ss, nlucy)
-
--- -- | replace the old testLucker
--- checkLucker::
---         ( MonadReader env m
---         , MonadIO m 
---         , Has D.Language env 
---         , UseRuleOnly env 
---         , OrderingContext env 
---         ) => D.Language -> SearchRecord -> m (Either PathRecord SearchRecord, D.Language)
--- checkLucker seen sr@(p,_) = do 
---     conflicts <- scanAttacker seen p 
---     defeaters <- concat <$> mapM (checkConflict p) conflicts 
---     if null defeaters 
---         then pure (Right sr, seen)
---         else 
---             do 
---             let 
---                 newSeen = M.rmdups $ seen ++ defeaters      
---             newPathRecord <- createPathRecord p defeaters   
---             pure (Left newPathRecord, newSeen) 
-
--- -- | 
--- -- 
--- -- | TODO: 
--- -- 1. 'conflict <$> globalRules <*> localRules' is really a computation consuming part!
--- -- 2. Extend Has so that this can be test automatically using QuickCheck maybe ? 
--- scanAttacker ::
---         ( MonadReader env m
---         , MonadIO m 
---         , Has D.Language env 
---         ) => D.Language -> D.Path -> m [Conflict]
--- scanAttacker seen path = do 
---     lang <- grab @D.Language 
---     let 
---         validRules = [r | r <-lang , r `notElem` seen] 
---         localRules = concat path 
---     pure $ filter ( /= Peace) $ conflict <$> validRules <*> localRules 
-
--- checkConflict :: 
---     ( MonadReader env m 
---     , MonadIO m 
---     , Has D.Language env 
---     , UseRuleOnly env 
---     , OrderingContext env 
---     ) => D.Path -> Conflict -> m D.Language 
--- checkConflict _ (Undercut l)= pure [l]
--- checkConflict _ Peace = pure [] 
--- checkConflict p (Rebut l) = do 
---     let 
---         defP = branchDef p [M.neg l]
---     necPaths <- getNecPath l
---     if 
---         null defP 
---         then pure []
---         else  do 
---             rs <- mapM (checkDefeat defP) necPaths 
---             if or rs 
---                 then pure [l] 
---                 else pure []  
-
-
--- createPathRecord ::
---         ( MonadReader env m
---         , MonadIO m 
---         , UseRuleOnly env
---         )=> D.Path ->  D.Language -> m PathRecord
--- createPathRecord p defeaters = do 
---     tmpAgu <- initAgu defeaters
---     pure (p,tmpAgu)
-
--- -- | This is the part which should be further abstracted. 
--- branchDef :: D.Path -> D.Language -> D.Path 
--- branchDef mp [] = []
--- branchDef mp lang = 
---     let 
---         rules = concat mp 
---         currentLevel = [ r |l <- lang, r <- rules, D.conC r == l] 
---         nextLevelPros = concat $ D.body <$> currentLevel
---     in currentLevel : branchDef mp nextLevelPros
-
--- getNecPath :: 
---     ( MonadReader env m 
---     , MonadIO m 
---     , Has D.Language env 
---     , UseRuleOnly env 
---     ) => D.Literal -> m D.Argument 
--- getNecPath l = do 
---     initA <- initAgu [l]
---     augDefeasible initA
-
--- checkDefeat :: 
---     ( MonadReader env m 
---     , MonadIO m 
---     , OrderingContext env
---     ) => D.Path -> D.Path -> m Bool 
--- checkDefeat defenderPath attackPath = do 
---     rdPreferenceMap <- D.getRdPrefMap <$>   grab @D.RdPrefMap
---     knPreferenceMap <- D.getKnwlPrefMap <$> grab @D.KnwlPrefMap
---     let prefMap = Map.union rdPreferenceMap knPreferenceMap
---         (flg, dDefs) = lastLinkChecker defenderPath (D.conC <$> head defenderPath)
---     if flg 
---     then
---         do 
---         let 
---             aDefs = [r | r <- concat attackPath, D.imp r == M.D]
---         pure $ ord prefMap aDefs dDefs 
-        
---     else 
---         pure flg 
-
--- selectOneLucker :: SearchRecords -> SearchRecord 
--- selectOneLucker rs = 
---     let 
---         completePath =  [r | r <- rs, reachGround (fst r) ]
---         shortestPath = sortBy (flip compare `on` (length . fst)) completePath 
---     in head shortestPath
-
--- {-Ord Auxiliaries-}
--- ord :: D.PreferenceMap -> D.Language -> D.Language -> Bool 
--- ord pm attackerDefs argDefs 
---     | null ldrA && null ldrB = eli pm (axiA ++ ordiA) (axiB ++ ordiB)
---     | null ldrA = True 
---     | otherwise = eli pm ldrA ldrB 
---     where 
---         ldrA = rulesToDefs attackerDefs
---         ldrB = rulesToDefs argDefs
---         axiA = rulesToPrems attackerDefs 
---         axiB = rulesToPrems argDefs
---         ordiA = rulesToAxiom attackerDefs 
---         ordiB = rulesToAxiom argDefs
-
--- eli :: D.PreferenceMap -> D.Language -> D.Language -> Bool 
--- eli pMap argA argB 
---         | null argA && null argB = False 
---         | null argB = False 
---         | null argA  =  True 
---         | otherwise = eli' pMap argA argA
-
--- eli' :: D.PreferenceMap -> D.Language -> D.Language -> Bool 
--- eli' pMap l1 (l:ls)= 
---     let 
---         rl = [sl | sl <- l1 , preferThan pMap sl l]
---     in
---         ((length rl == length l1) || eli' pMap l1 ls)
--- eli' pMap l1 [] = False
-
--- preferThan pMap l1 l2 = 
---     let cMay = do 
---                 r1 <- Map.lookup (D.name l1) pMap 
---                 r2 <- Map.lookup (D.name l2) pMap 
---                 pure $ r1 >= r2 
---     in Just True == cMay
-
-
--- rulesToDefs :: D.Language -> D.Language 
--- rulesToDefs rules = [r | r<-rules, (not . null) (D.body r)]
-
--- rulesToPrems :: D.Language -> D.Language 
--- rulesToPrems rules = [r | r<-rules, D.imp r == M.D , null (D.body r)]
-
--- rulesToAxiom:: D.Language -> D.Language 
--- rulesToAxiom rules = [r | r<-rules, D.imp r == M.S , null (D.body r)]
-
--- -- | 
--- -- If given path contains all last links of path to given 'props' then returns (True and corresponding rules)
--- lastLinkChecker :: D.Path -> D.Language -> (Bool, D.Language) 
--- lastLinkChecker p targets = 
---     let 
---         rules = concat p 
---     in case lastLinkScan rules targets of 
---         Nothing -> (False , [])
---         Just defs -> (True, defs)
-
--- lastLinkScan :: D.Language -> D.Language -> Maybe D.Language 
--- lastLinkScan _ [] = Just [] 
--- lastLinkScan rules targets = do 
---     let 
---         rs = [r | r <- rules, D.conC r `elem` targets]
---     if length rs /= length targets 
---             then Nothing 
---             else 
---                 let 
---                     strictLine = [ r | r <- rules, D.conC r `elem` targets, D.imp r == M.S, (not . null) (D.body r)]
---                     defeasible = [ r | r <- rules, D.conC r `elem` targets, D.imp r == M.D, (not . null) (D.body r)]
---                     premise = [ r|  r <- rules, D.conC r `elem` targets, null (D.body r)]
---                 in do 
---                     rlist <- lastLinkScan rules (concat (D.body <$> strictLine))
---                     pure $ rlist ++ defeasible ++ premise 
-            
-
--- selectRebutters :: D.Language -> D.Language -> D.Path -> D.Language
--- selectRebutters lang seen p = 
---     let 
---         defeasiblePropositions = [D.conC r | r <- concat p, D.imp r == M.D ]
---         targets = M.neg <$> defeasiblePropositions
---     in [c | c <- lang , c `elem` targets , c `notElem` seen]
-
--- selectUndercutters :: D.Language -> D.Language -> D.Path -> D.Language 
--- selectUndercutters lang seen p = 
---     let 
---         defeasibleRules = [r | r <- concat p, D.imp r == M.D && (not . null) (D.body r)]
---         targets = M.neg <$> defeasibleRules
---     in [l | l <- lang , l `elem` targets, l `notElem` seen]
-
-
--- {-construction auxilaries-}
--- initAgu:: 
---         ( MonadReader env m
---         , MonadIO m 
---         , UseRuleOnly env
---         )=> D.Language -> m D.Argument 
--- initAgu ls = do
---     subLevel <- mapM concludeBy ls 
---     pure [[p] | p <- foldr createParallel [[]] subLevel]
-
--- createParallel :: [a] -> [[a]] -> [[a]] 
--- createParallel paths ls = do 
---         pa <- paths
---         a <- ls 
---         pure $  pa:a  
-
--- aguFixpoint :: 
---     ( MonadReader env m
---     , UseRuleOnly env 
---     , MonadIO m 
---     ) => D.Argument  -> m D.Argument 
--- aguFixpoint argument = do 
---     extendedAgu <- agu argument 
---     if extendedAgu == argument 
---         then pure argument 
---         else aguFixpoint extendedAgu 
-
--- augDefeasible :: 
---     ( MonadReader env m
---     , UseRuleOnly env 
---     , MonadIO m 
---     ) => D.Argument  -> m D.Argument 
--- augDefeasible = aguFixpoint 
-
--- agu :: 
---     ( MonadReader env m
---     , UseRuleOnly env 
---     , MonadIO m 
---     ) => D.Argument  -> m D.Argument 
--- agu argument = do 
---         arguments <- mapM pathExtend argument 
---         pure $ concat arguments 
-
--- pathExtend :: 
---     ( MonadReader env m
---     , UseRuleOnly env 
---     , MonadIO m 
---     ) => D.Path -> m D.Argument 
--- pathExtend path = do 
---     let 
---         rules = last path 
---         bodies = concat $ D.body <$> rules 
---     if 
---         null bodies 
---         then pure [path]
---     else 
---         do 
---     supportRules <- mapM concludeBy bodies 
---     let 
---         parallelPathSection = foldr createParallel [[]] supportRules
---         newArgument = do 
---                 pathSection <- parallelPathSection
---                 pure $ path ++ [pathSection] 
---     pure newArgument
-        
-
--- concludeBy :: 
---         ( MonadReader env m
---         , MonadIO m 
---         , UseRuleOnly env
---         ) => D.Literal -> m D.Language 
--- concludeBy l = do 
---     dRules <- grab @D.DefeasibleRules
---     sRules <- grab @D.StrictRules
---     let 
---         globalRules = D.getDefeasibleRules dRules ++ D.getStrictRules sRules
---     pure [r | r<- globalRules, D.conC r == l ]
-
--- checkLuckyComplete :: SearchRecords -> SearchRecords
--- checkLuckyComplete rs = [r | r <- rs, reachGround (fst r) ]
-
--- reachGround :: D.Path -> Bool 
--- reachGround path = 
---     let 
---         i = last path 
---     in case concat (D.body <$> i) of 
---         [] -> True 
---         _ -> False 
+survived :: D.SearchRecord a-> D.PathRecords a-> D.Language a -> D.Board a-> D.Board a
+survived newLuckyer newWaiting defeaterSeen board@D.Board{..}=
+    board {D.waiting=newWaiting, D.lucky =newLuckyer:lucky, D.seen=seen++defeaterSeen}

@@ -21,7 +21,10 @@ import qualified Toolkits.Common as TOOL
 
 -- | TODO:
 {-
-    1. seen need to include both defeater and defeated proposition. 
+    1 seen should be wrapped in writer monad . 
+        This writer monad could be used to store much valuable informatoin. 
+        Maybe could just update an term in Reader env . 
+    2 defeater construction in getNec should be smarter . 
 -}
 
 {-
@@ -74,7 +77,7 @@ checkLuckySet seen (r:rs) = do
     checkLucker seen sr@(p,_) = do                  
         lang <- D.getLogicLanguage  <$> Env.grab @(D.LogicLanguage a)
         let 
-            validP = [ r | r <- lang, r `notElem` seen ]
+            validP = [ r | r <- lang, r `notElem` seen && D.conC r `notElem` seen ]
             localRules = concat p 
         checkedConflict <- mapM (uncurry Ord.conflict) [(v,l) | v<-validP, l<-localRules]
         let 
@@ -84,14 +87,48 @@ checkLuckySet seen (r:rs) = do
             then pure $ Right (sr, seen)
             else do 
                 defeaterPropositions <- concat <$> mapM (checkConflict p) validConflict
+                seenUpdate <- concat <$> mapM (updateSeen p) validConflict
                 if null defeaterPropositions  
                     then pure $ Right (sr, seen)
                     else do 
                         let 
-                            newSeen = TOOL.rmdups $ seen ++ defeaterPropositions
+                            newSeen = TOOL.rmdups $ seen ++ seenUpdate
                         defeaterAgu <- initAgu defeaterPropositions
                         pure $ Left ((p,defeaterAgu), newSeen)
-    
+
+-- | This is a great bug shows why it would be better to use type level logic to restrict behaviour 
+-- 原来的 checkConflict 修改后将 attacker 和 defeater proposition 都加入了seen中，变成 defeaterPropositions 来
+-- 更新 seen， 但是 没有注意到 defeaterPropositions 同样用来构造 defeaterAgu， 所以如果initAgu 的输入必须满足一定类型的要求
+-- terms 或者 types 那么是否可以阻止这个问题？
+                        -- let 
+                            -- newSeen = TOOL.rmdups $ seen ++ defeaterPropositions
+                        -- defeaterAgu <- initAgu defeaterPropositions
+                        -- pure $ Left ((p,defeaterAgu), newSeen)
+    updateSeen :: forall a env m .
+        ( AS.Has (D.LogicLanguage a) env
+        , AS.Has (D.Rules a) env
+        , AS.Has D.PreferenceMap  env
+        , AS.Has (AS.OrderFunction a) env
+        , MonadIO m 
+        , MonadReader env m 
+        , Eq a 
+        , Show a 
+        ) => D.Path a-> Ord.Conflict a-> m (D.Language a)
+    updateSeen _ (Ord.Undercut (a,l))= pure [a]
+    updateSeen _ Ord.Peace = pure [] 
+    updateSeen p (Ord.Rebut (a,l)) = do 
+        let 
+            defP = D.branchDef p [D.conC l]
+        necPaths <- getNecPath a
+        if 
+            null defP 
+            then pure []
+            else  do 
+                rs <- mapM (checkDefeat defP) necPaths 
+                if or rs 
+                    then pure [a,D.conC l] 
+                    else pure []   
+
     checkConflict :: forall a env m .
         ( AS.Has (D.LogicLanguage a) env
         , AS.Has (D.Rules a) env
@@ -119,6 +156,7 @@ checkLuckySet seen (r:rs) = do
                 if or rs 
                     then pure [a] 
                     else pure []   
+
     getNecPath :: 
         ( AS.Has (D.LogicLanguage a) env
         , AS.Has (D.Rules a) env
