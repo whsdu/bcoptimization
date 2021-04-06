@@ -96,14 +96,6 @@ checkLuckySet seen (r:rs) = do
                         defeaterAgu <- initAgu defeaterPropositions
                         pure $ Left ((p,defeaterAgu), newSeen)
 
--- | This is a great bug shows why it would be better to use type level logic to restrict behaviour 
--- 原来的 checkConflict 修改后将 attacker 和 defeater proposition 都加入了seen中，变成 defeaterPropositions 来
--- 更新 seen， 但是 没有注意到 defeaterPropositions 同样用来构造 defeaterAgu， 所以如果initAgu 的输入必须满足一定类型的要求
--- terms 或者 types 那么是否可以阻止这个问题？
-                        -- let 
-                            -- newSeen = TOOL.rmdups $ seen ++ defeaterPropositions
-                        -- defeaterAgu <- initAgu defeaterPropositions
-                        -- pure $ Left ((p,defeaterAgu), newSeen)
     updateSeen :: forall a env m .
         ( AS.Has (D.LogicLanguage a) env
         , AS.Has (D.Rules a) env

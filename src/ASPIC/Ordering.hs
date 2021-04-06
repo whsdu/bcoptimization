@@ -1,5 +1,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeApplications #-}
+
 module ASPIC.Ordering where 
 
 import ASPIC.Defeasible (Path, Imp(D, S, N), Literal, imp, conC ) 
