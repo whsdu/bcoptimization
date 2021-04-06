@@ -55,14 +55,14 @@ parseDefaultEnv filePath = do
 
 -- fileToPrefMap :: FilePath -> IO (L.RdPrefMap, L.KnwlPrefMap)
 
--- stringToEnv :: String -> IO Env 
--- stringToEnv content = do 
---     k <- stringToKnowledge content 
---     (rdMap, knMap) <- stringToPrefMap content 
---     let 
---         l = k2l k 
---         r = chainingRule l 
---     pure $ mkEnv r rdMap knMap 
+stringToDefEnv :: String -> IO (AS ())
+stringToDefEnv content = do 
+    k <- stringToKnowledge content 
+    prefMap <- stringToPrefMap content 
+    let 
+        l = k2l k 
+        r = chainingRule l Default.neg 
+    pure $ mkDefEnv r prefMap
 
 parseLiteralMap :: AS () -> Map.HashMap D.Name (D.Literal ())
 parseLiteralMap as = 
@@ -201,6 +201,10 @@ fileToPrefMap :: FilePath -> IO D.PreferenceMap
 fileToPrefMap filePath = do 
     handle <- openFile filePath  ReadMode
     contents <- hGetContents handle 
+    stringToPrefMap contents 
+
+stringToPrefMap :: String -> IO D.PreferenceMap 
+stringToPrefMap contents = do 
     let 
         records = removeComment( lines contents )
         premisesLines = [r | r <- records,(":=" `isInfixOf` pack r) || (":-" `isInfixOf` pack r)]
