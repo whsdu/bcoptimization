@@ -1,6 +1,4 @@
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}

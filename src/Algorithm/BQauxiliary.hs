@@ -1,6 +1,4 @@
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeApplications #-}
 
