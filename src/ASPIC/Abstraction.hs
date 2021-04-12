@@ -1,3 +1,12 @@
+{-|
+This module contains information being usd for 
+
+- Argumentation System (AS)
+- Function Types that parameterize the behaviour of Backward Chaining Algorithm 
+- Type Class that support ReaderT(Has) pattern. 
+
+-}
+{-# LANGUAGE Safe #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -8,7 +17,19 @@
 {-# LANGUAGE RecordWildCards #-}
 -- {-# LANGUAGE ConstraintKinds #-}
 
-module ASPIC.Abstraction where 
+module ASPIC.Abstraction 
+    (
+    -- * Argumentation System 
+     AS(..)
+    -- * Parametrization Critical Behaviour Function of BC algorithm 
+    , PathSelection
+    , DefeaterSelection 
+    , NegationFunction 
+    , CheckNegationFunction 
+    , OrderFunction 
+    -- * Environment using Has pattern
+    , Has(..)
+    )where 
 
 import Data.HashMap.Strict (toList)
 import Data.List (group, sort)
@@ -17,6 +38,7 @@ import Control.Monad.Reader
 
 import qualified ASPIC.Defeasible as D (Literal, Path, Argument, Board, LogicLanguage(..), Rules(..), SearchRecords, PathRecords, PreferenceMap, SearchRecord, PathRecord)
 
+-- | 'AS' is short for Argumentation System. 
 data AS a =  AS 
     { asLanguage :: D.LogicLanguage a
     , asRules ::  D.Rules a

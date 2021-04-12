@@ -30,8 +30,8 @@ conflict ::
     ) => Literal a -> Literal a -> m (Conflict a)
 conflict proposition rule = 
     case imp rule of 
-        S -> pure $ Peace 
-        N -> pure $ Peace 
+        S -> pure Peace 
+        N -> pure Peace 
         D -> do 
             r1 <- rebuts proposition rule 
             r2 <- undercuts proposition rule 
@@ -63,7 +63,7 @@ undercuts ruleAttacker rule = do
     isNeg <- grab @(CheckNegationFunction a)
     if isNeg ((neg . conC) ruleAttacker) rule 
         then pure $ Just $ Undercut (conC ruleAttacker, rule) 
-        else pure $ Nothing 
+        else pure Nothing 
 
 isOrdReady :: forall a . Path a -> Bool 
 isOrdReady p = undefined 

@@ -1,35 +1,51 @@
+
+{-|
+This module contains two groups of definitions . 
+
+Group one refers to components of a Defeasible Theory that can be used to build an Argumentation System. 
+
+- Types: Literal, Language, Argument, Argument Group, etc.
+- Functions: name, body, imp, conC, etc. 
+
+Group two refers to components that critical for backward chaining algorithm. 
+
+- Defeater, Board, SearchRecord(s), PathRecord(s), PreferenceMap,LiteralMap,etc.
+ 
+-}
+{-# LANGUAGE Safe #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE GeneralisedNewtypeDeriving #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module ASPIC.Defeasible
-    ( Literal (..)
-    , Language 
-    , Path 
-    , Argument
+    ( 
+    -- * Defeasible Theory 
+    -- ** Data Types
+      Literal (..)
     , Imp(..)
     , Name
     , Board(..)
-    , SearchRecord
-    , SearchRecords
-    , PathRecord
-    , PathRecords
-    , Defeater(..)
-
-    -- , StrictRules (..)
-    -- , DefeasibleRules(..)
-    -- , PreferenceMap
-    -- , RdPrefMap(..)
-    -- , KnwlPrefMap(..)
+    , Language 
+    -- ** Auxiliary Functions
     , name
     , body
     , imp
     , conC
+    -- * Backward Chaining
+    -- ** Data Types 
+    , Path 
+    , Argument
+    , Defeater(..)
+    , SearchRecord
+    , SearchRecords
+    , PathRecord
+    , PathRecords
+    -- ** Auxiliary Functions
     , statement
     , branchDef
+    -- ** Run-time Environment Information
     , PreferenceMap
     , LiteralMap
     , Rules(..)
@@ -40,29 +56,35 @@ module ASPIC.Defeasible
 import qualified Data.HashMap.Strict as Map
 import qualified GHC.List as GHC (head)
 
--- | Literal is defined recursively because body and conclusion(head) or rules could also be rule itself.
--- `Rule` is constructor of `Ordinary Premises`, `Axiom Premises`, `Strict Rules` & `Defeasible Rules`. 
--- `Atom` is constructor of conclusion other than above `Premises` or `Rules`.   
--- `n` introduced in paper maps a rule to a literal, it is not necessary here when Literal is defined recursively like this.
-
-
--- data Statement a = Statement a | Deduction
-
--- TODO: 
-{-
-    1. actually, Atom could also be represented by Rule, with 'Imp` being 'N', this maybe over engineered 
-    If it is possible maybe use type programming to handle this ?
--}
+-- | Literal is defined recursively because body and head(conclusion) or rules could also be a rule.   
+--  
+-- 'Rule' is constructor of __Ordinary Premises__, __Axiom Premises__, __Strict Rules__ & __Defeasible Rules__. 
+-- 
+-- 'Atom' is constructor of __Proposition__ other than above 'Premises' or 'Rules'.   
+-- 
+-- Function __'n'__ introduced in <https://content.iospress.com/articles/argument-and-computation/869766 paper>
+-- maps a rule to a literal, it is not necessary here when Literal is defined recursively like this.
 
 data Literal a where
     Atom :: (Show a, Eq a) =>  Name -> a -> Literal a
     Rule ::  (Show a, Eq a) => Name -> [Literal a] -> Imp -> Literal a-> Literal a 
-
--- | TODO:
-{-
-    1. 'a' should also be included in the Show instance.
-    2. The same with other instance.  
+{- TODO:
+    1. Atom could also be represented by Rule, with 'Imp` being 'N', this maybe over engineered 
+    If it is possible maybe use type programming to handle this ?
 -}
+
+-- | Logic Language is a set of 'Literal's.
+type Language a = [Literal a] 
+
+-- | Wrapper of 'Language' to represents Rule 'Literal's. 
+newtype Rules a = Rules {getRules :: Language a }
+
+-- | Wrapper of 'Language' to represents all 'Language'.  
+newtype LogicLanguage a = LogicLanguage {getLogicLanguage :: Language a}
+{- 
+TODO: Could be replaced with 'Language' directly maybe?
+-}
+
 instance (Show a) => Show (Literal a) where
     show (Rule n b i h) = n ++ ": " ++ bs ++ im ++ head
         where
@@ -84,21 +106,6 @@ instance (Eq a) => Eq (Literal a) where
     Rule{} == Atom{} = False 
 
 
--- instance Applicative Literal where 
---     pure = Atom ""
---     (Atom _ f) <*> (Atom n a) = Atom n (f a)
---     f <*> (Rule _ _ _ c) = f <*> c 
-
-{-Language-}
--- A set of rules 
--- [r1,r2,r3,r4]
-type Language a = [Literal a] 
-
-{-
-Wrapper of Language so that we could tell the difference between Rules and Language.
--}
-newtype Rules a = Rules {getRules :: Language a }
-newtype LogicLanguage a = LogicLanguage {getLogicLanguage :: Language a}
 
 instance (Show a) => Show (Rules a) where 
     show  = show . getRules
@@ -106,45 +113,60 @@ instance (Show a) => Show (Rules a) where
 instance (Show a) => Show (LogicLanguage a) where 
     show  = show . getLogicLanguage
 
+
+-- | Dictionary being used to get literal given certain name
+--
+-- e.g. Getting a proposition of name "q1" 
 type LiteralMap a=  Map.HashMap Name (Literal a) 
+
+-- | Dictionary being used to store pre-defined priority orderings 
+-- 
+-- Currently the priority ordering value is of type 'Int' and is associated with 'Rule's only. 
 type PreferenceMap = Map.HashMap Name Int 
 
-{-Path-}
--- A list of sets of rules 
+-- | A Path is a list of sets of rules, e.g.
 -- [[r1,r2],[r3,r4]]
--- 1. Path that satisfy path properties 
+-- 
+-- A Path satisfies all 5 path properties 
 type Path a = [Language a] 
-
-{-Argument-}
--- A list of Path
--- 1. Argument 
--- 2. In complete- argument 
-type Argument a = [Path a]
-
 {-
-Following types:
- 'Base', 'DefeaterStatus', 'Defater' , 
-are used for BCOptimization algorithm. 
+TODO: This will be renamed as __Argument__.
 -}
 
--- data DefeaterStatus = Warranted Argument | Unwarranted Argument | Pending Argument 
+-- | An Argument is a set of Path
+type Argument a = [Path a]
+{-
+TODO: Will be renamed as __ArgumentGroup__.
+-}
 
+-- | DefeatTree
+-- 
+-- Consists of an incomplete-argument and a group of argument that defeat this argument. 
 data Defeater a = 
                   (Show a) => SW (Argument a)
                 | (Show a) => Warranted (Path a, Defeater a)
                 | (Show a) => Unwarranted [(Path a, Defeater a)] 
                 | NoDefeater
+{-
+TODO: Will be renamed as __DefeatTree__. 
+-}
 
+-- | Consists of an incomplete-argument and a group of argument that defeat this argument. 
 type SearchRecord a = (Path a,Defeater a) 
 type SearchRecords a = [SearchRecord a]
 
+-- | Consists of an incomplete-argument and a group of argument that attack this argument. 
 type PathRecord a = (Path a,Argument a) 
 type PathRecords a = [PathRecord a]
 
--- | Lucky contains Either SearchRecords with NoDefeaters or SearchRecord with Unwarranted defeaters 
--- futile contains SearchRecords with Warranted defeaters only. 
--- TODO: this should be a dependent type. 
+-- | lucky contains Either SearchRecords with NoDefeaters or SearchRecord with Unwarranted defeaters 
+-- 
+-- futile contains SearchRecords with (Self)Warranted defeaters. 
+-- 
 data Board a = Board {lucky :: SearchRecords a, waiting :: PathRecords a, futile :: SearchRecords a, seen :: Language a}
+{-
+TODO: Could this be rewritten using type level programming (some kind of DSL)?
+-}
 
 instance (Show a) => Show (Defeater a) where 
     show (SW p) = "Self-Warranted : " ++ show p 
@@ -172,11 +194,16 @@ instance (Show a) => Show (Board a) where
         "SEEN: " ++ show seen ++ "\n" 
 
 
-{-
-Auxiliaies types and functions below
--}
+-- | Name of each 'Literal'
 type Name = String 
 
+-- | There are 3 types of __Implications__
+--
+-- 'S' : Strict rule . 
+-- 
+-- 'D' : Defeasible rule .
+-- 
+-- 'N' : Rules with no implication: __Ordinary Premises__ or __Axioms__ . 
 data Imp = S | D | N
 
 instance Show Imp where 
@@ -190,22 +217,16 @@ instance Eq Imp where
     (==) N N = True 
     (==) _ _ = False
 
--- | LanguageMap is a dictionary used to query Literal with given name
-
-
--- newtype StrictRules = StrictRules {getStrictRules :: Language}
--- newtype DefeasibleRules = DefeasibleRules {getDefeasibleRules :: Language}
-
--- type PreferenceMap = Map.HashMap Name Int 
--- newtype RdPrefMap = RdPrefMap {getRdPrefMap :: Map.HashMap Name Int}
--- newtype KnwlPrefMap = KnwlPrefMap { getKnwlPrefMap :: Map.HashMap Name Int}
-
 -- | name of an instantiation of type `Literal`: it plays two rules:
 -- 1. To be used to guarantee the uniqueness of a `Literal`.
 -- 2. To be used to defined negation with simple `!`.
 name :: Literal a-> Name
 name (Rule n _ _ _) = n
 name (Atom n _ )       = n
+{-
+TODO: this implementation limited negation of being strong negation only. 
+Should be improved. 
+-}
 
 -- | Body Imp Conc
 -- Get body of a rule
@@ -225,6 +246,14 @@ conC :: Literal a -> Literal a
 conC (Rule _ _ _ h) = h
 conC a@(Atom _ _)     = a
 
+-- | Return the statement of each 'Literal'
+--
+-- The statement of a 'Rule' is the statement of its head(conclusion)
+-- 
+-- The statement of an 'Atom' is the type being contains in this proposition. 
+-- 
+-- Information in __a__ can be used to define 'ASPIC.Abstraction.NegationFunction'. 
+-- In the default 
 statement :: Literal a -> a 
 statement (Rule _ _ _ h) = statement h 
 statement (Atom _ a) = a 

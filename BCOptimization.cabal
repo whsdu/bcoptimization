@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 4aad6752d5909fd80e2d6e9973270a5291b59fef1c780c46af5ef2f9b442cb73
+-- hash: df7093ba7e8526dd3e4010ff0de0233bf2fafa89ec0587f14b46f143cdc79f80
 
 name:           BCOptimization
 version:        0.1.0.0
@@ -58,11 +58,14 @@ test-suite BCOptimization-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      ASPIC.DefeasibleSpec
       Paths_BCOptimization
   hs-source-dirs:
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       BCOptimization
+    , QuickCheck
     , base >=4.7 && <5
+    , hspec
   default-language: Haskell2010
