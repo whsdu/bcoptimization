@@ -25,7 +25,8 @@ dependencies:
 library:
   source-dirs: src
   
-  default-extensions:  
+  default-extensions: 
+  - ExistentialQuantification
   - ConstraintKinds
   - DeriveGeneric
   - GeneralizedNewtypeDeriving
