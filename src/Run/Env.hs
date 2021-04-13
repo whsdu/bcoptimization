@@ -30,5 +30,6 @@ newtype App a b = App
     { unApp :: ReaderT (AS.AS a) IO b
     } deriving newtype (Functor, Applicative, Monad, MonadIO , MonadReader (AS.AS a))
 
+-- | Combinator that connect env information with all App. 
 runApp :: AS.AS a -> App a b -> IO b
 runApp env app = (runReaderT $ unApp app) env

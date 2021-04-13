@@ -72,20 +72,28 @@ instance (Show a) => Show (AS a) where
         "length: " ++ show ((length . toList) asPreferenceMap)
 
 instance Has (D.LogicLanguage a) (AS a) where obtain  = asLanguage
+instance Has (D.LogicLanguage a) (D.LogicLanguage a) where obtain  = id 
 
 instance Has (D.Rules a) (AS a) where obtain = asRules
+instance Has (D.Rules a) (D.Rules a) where obtain = id 
 
 instance Has D.PreferenceMap  (AS a) where obtain = asPreferenceMap
+instance Has D.PreferenceMap  D.PreferenceMap where obtain = id  
 
 instance Has (PathSelection a) (AS a) where obtain = asPathSelection
+instance Has (PathSelection a) (PathSelection a)  where obtain = id  
 
 instance Has (DefeaterSelection a) (AS a) where obtain = asDefeaterSelection
+instance Has (DefeaterSelection a) (DefeaterSelection a) where obtain = id  
 
 instance Has (NegationFunction a) (AS a) where obtain = asNegationFunction
+instance Has (NegationFunction a) (NegationFunction a) where obtain = id
 
 instance Has (CheckNegationFunction a) (AS a) where obtain = asCheckNegationFunction
+instance Has (CheckNegationFunction a) (CheckNegationFunction a) where obtain = id
 
 instance Has (OrderFunction a) (AS a) where obtain = asOrderFunction
+instance Has (OrderFunction a) (OrderFunction a) where obtain = id
 
 
 -- | Type of functions that select one search records from a set of search-records.
