@@ -10,6 +10,8 @@ Group two refers to components that critical for backward chaining algorithm.
 
 - Defeater, Board, SearchRecord(s), PathRecord(s), PreferenceMap,LiteralMap,etc.
 
+TODO: 'ASPIC.Defeasible' and 'ASPIC.Abstraction' are core of this library. 
+Others, such as Run, Default, Ordering, Parser, Algorithm, should be the implementation of this library. 
 -}
 
 {-# LANGUAGE FlexibleInstances    #-}

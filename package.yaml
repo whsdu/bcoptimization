@@ -29,7 +29,6 @@ library:
   - ExistentialQuantification
   - ConstraintKinds
   - DeriveGeneric
-  - GeneralizedNewtypeDeriving
   - InstanceSigs
   - KindSignatures
   - LambdaCase
@@ -49,6 +48,7 @@ library:
   - unordered-containers
   - containers
   - text
+  - QuickCheck
 
 tests:
   BCOptimization-test:
@@ -59,6 +59,8 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
+    - primes
+
     - hspec
     - QuickCheck
     - BCOptimization

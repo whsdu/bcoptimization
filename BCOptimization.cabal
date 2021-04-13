@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 35edcea05f96eb63464fe7aedf4bc3e2022fa151b46bb59d133872b137449cff
+-- hash: 2c522595b5fa20390d23db037a02dacff9fe6f64b1308786dfa98f1a6bd07750
 
 name:           BCOptimization
 version:        0.1.0.0
@@ -43,9 +43,10 @@ library
       Paths_BCOptimization
   hs-source-dirs:
       src
-  default-extensions: ExistentialQuantification ConstraintKinds DeriveGeneric GeneralizedNewtypeDeriving InstanceSigs KindSignatures LambdaCase OverloadedStrings RecordWildCards ScopedTypeVariables StandaloneDeriving TupleSections TypeApplications TypeOperators ViewPatterns
+  default-extensions: ExistentialQuantification ConstraintKinds DeriveGeneric InstanceSigs KindSignatures LambdaCase OverloadedStrings RecordWildCards ScopedTypeVariables StandaloneDeriving TupleSections TypeApplications TypeOperators ViewPatterns
   build-depends:
-      base >=4.7 && <5
+      QuickCheck
+    , base >=4.7 && <5
     , containers
     , mtl
     , split
@@ -68,4 +69,5 @@ test-suite BCOptimization-test
     , QuickCheck
     , base >=4.7 && <5
     , hspec
+    , primes
   default-language: Haskell2010
