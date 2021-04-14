@@ -48,7 +48,11 @@ library:
   - unordered-containers
   - containers
   - text
+
   - QuickCheck
+  - validity
+  - hedgehog
+  - genvalidity 
 
 tests:
   BCOptimization-test:
@@ -59,8 +63,11 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - primes
+    - BCOptimization
 
+    - primes
     - hspec
     - QuickCheck
-    - BCOptimization
+    - hedgehog
+    - validity
+    - genvalidity 

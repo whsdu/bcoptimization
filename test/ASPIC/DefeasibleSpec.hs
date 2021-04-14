@@ -69,10 +69,12 @@ instance (Integral a, Arbitrary a) => Arbitrary (Prime a) where
                         ] 
         pure $ Primes (primes !! x) 
 
-
-prop'PrimeSum'v4 :: Prime Int -> Prime Int ->   Property
+prop'PrimeSum'v4 :: Prime Int -> Prime Int -> Property
 prop'PrimeSum'v4  (Primes p) (Primes q)=
     p > 2 && q > 2 ==> 
         classify ( p < 1000 && q < 1000) "small primes" $ 
             classify ( p > 1000 || q > 1000) "medium primes" $ 
                 classify (p > 1000 && q > 1000) "large primes" $ even (p + q) 
+
+reflexive :: Arbitrary a => (a -> a -> Bool) -> a -> Bool 
+reflexive rel = \x -> x `rel` x

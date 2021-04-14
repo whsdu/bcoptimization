@@ -10,8 +10,8 @@ Group two refers to components that critical for backward chaining algorithm.
 
 - Defeater, Board, SearchRecord(s), PathRecord(s), PreferenceMap,LiteralMap,etc.
 
-TODO: 'ASPIC.Defeasible' and 'ASPIC.Abstraction' are core of this library. 
-Others, such as Run, Default, Ordering, Parser, Algorithm, should be the implementation of this library. 
+TODO: 'ASPIC.Defeasible' and 'ASPIC.Abstraction' are core of this library.
+Others, such as Run, Default, Ordering, Parser, Algorithm, should be the implementation of this library.
 -}
 
 {-# LANGUAGE FlexibleInstances    #-}
@@ -38,8 +38,8 @@ module ASPIC.Defeasible
     , conC
     -- * Backward Chaining
     -- ** Data Types
-    , Path
     , Argument
+    , ArgumentGroup
     , Defeater(..)
     , SearchRecord
     , SearchRecords
@@ -131,13 +131,13 @@ type PreferenceMap = Map.HashMap Name Int
 -- [[r1,r2],[r3,r4]]
 --
 -- A Path satisfies all 5 path properties
-type Path a = [Language a]
+type Argument a = [Language a]
 {-
 TODO: This will be renamed as __Argument__.
 -}
 
--- | An Argument is a set of Path
-type Argument a = [Path a]
+-- | An Argument is a set of Argument
+type ArgumentGroup a = [Argument a]
 {-
 TODO: Will be renamed as __ArgumentGroup__.
 -}
@@ -146,20 +146,20 @@ TODO: Will be renamed as __ArgumentGroup__.
 --
 -- Consists of an incomplete-argument and a group of argument that defeat this argument.
 data Defeater a =
-                  (Show a) => SW (Argument a)
-                | (Show a) => Warranted (Path a, Defeater a)
-                | (Show a) => Unwarranted [(Path a, Defeater a)]
+                  (Show a) => SW (ArgumentGroup a)
+                | (Show a) => Warranted (Argument a, Defeater a)
+                | (Show a) => Unwarranted [(Argument a, Defeater a)]
                 | NoDefeater
 {-
 TODO: Will be renamed as __DefeatTree__.
 -}
 
 -- | Consists of an incomplete-argument and a group of argument that defeat this argument.
-type SearchRecord a = (Path a,Defeater a)
+type SearchRecord a = (Argument a,Defeater a)
 type SearchRecords a = [SearchRecord a]
 
 -- | Consists of an incomplete-argument and a group of argument that attack this argument.
-type PathRecord a = (Path a,Argument a)
+type PathRecord a = (Argument a,ArgumentGroup a)
 type PathRecords a = [PathRecord a]
 
 -- | lucky contains Either SearchRecords with NoDefeaters or SearchRecord with Unwarranted defeaters
@@ -179,13 +179,13 @@ instance (Show a) => Show (Defeater a) where
     show (Unwarranted sub) =
         "Unwarranted : " ++ showSubTree sub
 
-showSubTree ::  (Show a) => [(Path a, Defeater a)] -> String
+showSubTree ::  (Show a) => [(Argument a, Defeater a)] -> String
 showSubTree = foldr showSingleTree ""
-showSingleTree :: (Show a) =>  (Path a, Defeater a) -> String -> String
+showSingleTree :: (Show a) =>  (Argument a, Defeater a) -> String -> String
 showSingleTree (p,d) s =
     let
         content =
-            "Path: " ++ show p ++
+            "Argument: " ++ show p ++
             "defeater: " ++ show d
     in content ++ s
 
@@ -261,7 +261,7 @@ statement :: Literal a -> a
 statement (Rule _ _ _ h) = statement h
 statement (Atom _ a)     = a
 
-branchDef :: forall a.(Eq a) => Path a-> Language a -> Path a
+branchDef :: forall a.(Eq a) => Argument a-> Language a -> Argument a
 branchDef mp [] = []
 branchDef mp lang =
     let

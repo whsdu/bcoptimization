@@ -42,7 +42,7 @@ selectionOne srs =
             sortByDefeasible = sortBy (flip compare `on` (length . getDef . fst)) srs
         in (head sortByDefeasible, tail sortByDefeasible)
     where
-        getDef :: D.Path a-> D.Language a
+        getDef :: D.Argument a-> D.Language a
         getDef p =
             let
                 rules = concat p
@@ -55,7 +55,7 @@ selectionTwo prs =
             sortByDefeasible = sortBy (flip compare `on` (length . getDef . fst)) prs
         in (head sortByDefeasible, tail sortByDefeasible)
     where
-        getDef :: D.Path a-> D.Language a
+        getDef :: D.Argument a-> D.Language a
         getDef p =
             let
                 rules = concat p
@@ -70,7 +70,7 @@ ordering prefMap attacker defender =
         attackerSet = lastLinkChecker attacker (D.conC <$> head attacker)
     in ord prefMap attackerSet defenderSet
     where
-        lastLinkChecker ::(Eq a) => D.Path a-> D.Language a-> D.Language a
+        lastLinkChecker ::(Eq a) => D.Argument a-> D.Language a-> D.Language a
         lastLinkChecker p targets =
             let
                 rules = concat p

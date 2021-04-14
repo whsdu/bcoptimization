@@ -103,7 +103,7 @@ checkLuckySet seen (r:rs) = do
         , MonadReader env m
         , Eq a
         , Show a
-        ) => D.Path a-> Ord.Conflict a-> m (D.Language a)
+        ) => D.Argument a-> Ord.Conflict a-> m (D.Language a)
     updateSeen _ (Ord.Undercut (a,l))= pure [a]
     updateSeen _ Ord.Peace = pure []
     updateSeen p (Ord.Rebut (a,l)) = do
@@ -128,7 +128,7 @@ checkLuckySet seen (r:rs) = do
         , MonadReader env m
         , Eq a
         , Show a
-        ) => D.Path a-> Ord.Conflict a-> m (D.Language a)
+        ) => D.Argument a-> Ord.Conflict a-> m (D.Language a)
     checkConflict _ (Ord.Undercut (a,l))= pure [a]
     checkConflict _ Ord.Peace = pure []
     checkConflict p (Ord.Rebut (a,l)) = do
@@ -154,7 +154,7 @@ checkLuckySet seen (r:rs) = do
         , MonadIO m
         , MonadReader env m
         , Eq a
-        ) => D.Literal a -> m (D.Argument a)
+        ) => D.Literal a -> m (D.ArgumentGroup a)
     getNecPath l = do
         initA <- initAgu [l]
         augDefeasible initA
@@ -164,7 +164,7 @@ checkLuckySet seen (r:rs) = do
         , AS.Has (AS.OrderFunction a) env
         , MonadIO m
         , MonadReader env m
-        ) => D.Path a-> D.Path a-> m Bool
+        ) => D.Argument a-> D.Argument a-> m Bool
     checkDefeat defenderPath attackPath = do
         prefMap <- Env.grab @D.PreferenceMap
         ordering <- Env.grab @(AS.OrderFunction a)
@@ -176,7 +176,7 @@ initAgu ::
         , MonadIO m
         , MonadReader env m
         , Eq a
-        )=> D.Language a -> m (D.Argument a)
+        )=> D.Language a -> m (D.ArgumentGroup a)
 initAgu ls = do
     subLevel <- mapM concludeBy ls
     pure [[p] | p <- foldr createParallel [[]] subLevel]
@@ -196,7 +196,7 @@ aguFixpoint ::
     , MonadIO m
     , MonadReader env m
     , Eq a
-    ) => D.Argument a -> m (D.Argument a)
+    ) => D.ArgumentGroup a -> m (D.ArgumentGroup a)
 aguFixpoint argument = do
     extendedAgu <- agu argument
     if extendedAgu == argument
@@ -208,7 +208,7 @@ augDefeasible ::
     , MonadIO m
     , MonadReader env m
     , Eq a
-    ) => D.Argument a-> m (D.Argument a)
+    ) => D.ArgumentGroup a-> m (D.ArgumentGroup a)
 augDefeasible = aguFixpoint
 
 agu ::
@@ -216,7 +216,7 @@ agu ::
     , MonadIO m
     , MonadReader env m
     , Eq a
-    ) => D.Argument a-> m (D.Argument a)
+    ) => D.ArgumentGroup a-> m (D.ArgumentGroup a)
 agu argument = do
         arguments <- mapM pathExtend argument
         pure $ concat arguments
@@ -226,7 +226,7 @@ pathExtend ::
     , MonadIO m
     , MonadReader env m
     , Eq a
-    ) => D.Path a -> m (D.Argument a)
+    ) => D.Argument a -> m (D.ArgumentGroup a)
 pathExtend path = do
     let
         rules = last path
@@ -253,7 +253,7 @@ createParallel paths ls = do
 checkLuckyComplete :: D.SearchRecords a-> D.SearchRecords a
 checkLuckyComplete rs = [r | r <- rs, reachGround (fst r) ]
 
-reachGround :: D.Path a-> Bool
+reachGround :: D.Argument a-> Bool
 reachGround path =
     let
         i = last path

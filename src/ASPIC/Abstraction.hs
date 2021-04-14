@@ -36,8 +36,8 @@ import           Control.Monad.Reader
 import           Data.HashMap.Strict    (toList)
 import           Data.List              (group, sort)
 
-import qualified ASPIC.Defeasible       as D (Argument, Board, Literal,
-                                              LogicLanguage (..), Path,
+import qualified ASPIC.Defeasible       as D (ArgumentGroup, Board, Literal,
+                                              LogicLanguage (..), Argument,
                                               PathRecord, PathRecords,
                                               PreferenceMap, Rules (..),
                                               SearchRecord, SearchRecords)
@@ -121,7 +121,7 @@ type NegationFunction a =  D.Literal a -> D.Literal a
 type CheckNegationFunction a =  D.Literal a -> D.Literal a -> Bool
 
 -- | Defined the priority orderings relation between two incomplete-arguments.
-type OrderFunction a = D.PreferenceMap  -> D.Path a -> D.Path a -> Bool
+type OrderFunction a = D.PreferenceMap  -> D.Argument a -> D.Argument a -> Bool
 {-
 TODO:
 The ability to define Negation when implementing this library might relies on

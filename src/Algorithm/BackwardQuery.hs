@@ -35,7 +35,7 @@ query ::
     , MonadReader env m
     , Eq a
     , Show a
-    ) => D.Argument a->  m (D.Defeater a, D.Language a)
+    ) => D.ArgumentGroup a->  m (D.Defeater a, D.Language a)
 query incArgu = queryArgument incArgu []
 
 -- | rewrite query
@@ -52,7 +52,7 @@ queryArgument ::
     , MonadReader env m
     , Eq a
     , Show a
-    ) => D.Argument a-> D.Language a->  m (D.Defeater a, D.Language a)
+    ) => D.ArgumentGroup a-> D.Language a->  m (D.Defeater a, D.Language a)
 queryArgument incArgu accSeen = do
     let
         tmpBoard = initialBoard incArgu
@@ -110,7 +110,7 @@ Notes:
     3. Path in [Paths,...,Path] are all [Rules], and Rules has same set of heads.
 -}
 -- go to 2
-initialBoard :: (Show a) => D.Argument a -> D.Board a
+initialBoard :: (Show a) => D.ArgumentGroup a -> D.Board a
 initialBoard incArgu =
     let
         luckySet = (,D.NoDefeater) <$> incArgu

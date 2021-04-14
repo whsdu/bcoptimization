@@ -16,7 +16,7 @@ module ASPIC.Ordering
 
 import           ASPIC.Abstraction      (CheckNegationFunction, Has,
                                          NegationFunction)
-import           ASPIC.Defeasible       (Imp (D, N, S), Literal, Path, conC,
+import           ASPIC.Defeasible       (Imp (D, N, S), Literal, Argument, conC,
                                          imp)
 import           Run.Env                (grab)
 
@@ -82,6 +82,6 @@ undercuts ruleAttacker rule = do
         then pure $ Just $ Undercut (conC ruleAttacker, rule)
         else pure Nothing
 
-isOrdReady :: forall a . Path a -> Bool
+isOrdReady :: forall a . Argument a -> Bool
 isOrdReady p = undefined
 
