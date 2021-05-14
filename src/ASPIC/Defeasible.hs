@@ -70,7 +70,7 @@ import qualified GHC.List            as GHC (head)
 
 data Literal a where
     Atom :: (Show a, Eq a) =>  Name -> a -> Literal a
-    Rule ::  (Show a, Eq a) => Name -> [Literal a] -> Imp -> Literal a-> Literal a
+    Rule :: (Show a, Eq a) => Name -> [Literal a] -> Imp -> Literal a-> Literal a
 {- TODO:
     1. Atom could also be represented by Rule, with 'Imp` being 'N', this maybe over engineered
     If it is possible maybe use type programming to handle this ?

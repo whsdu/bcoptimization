@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 9f42e4b89edb5c3561ca9b8e85d184ee65b2c7576c9c156ee4764090e87ba1ae
+-- hash: 4aa526de69c4f8660ed611405a257b04f6a0525f907bb06a06e5ef88e2dbb997
 
 name:           BCOptimization
 version:        0.1.0.0
@@ -33,6 +33,7 @@ library
       ASPIC.Default
       ASPIC.Defeasible
       ASPIC.Ordering
+      ASPIC.Planning
       Dung.Argument
       Lib
       Parser.FileParser
