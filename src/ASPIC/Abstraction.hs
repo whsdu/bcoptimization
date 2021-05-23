@@ -36,8 +36,8 @@ import           Control.Monad.Reader
 import           Data.HashMap.Strict    (toList)
 import           Data.List              (group, sort)
 
-import qualified ASPIC.Defeasible       as D (ArgumentGroup, Board, Literal,
-                                              LogicLanguage (..), Argument,
+import qualified ASPIC.Defeasible       as D (Argument, ArgumentGroup, Board,
+                                              Literal, LogicLanguage (..),
                                               PathRecord, PathRecords,
                                               PreferenceMap, Rules (..),
                                               SearchRecord, SearchRecords)
@@ -47,14 +47,14 @@ import qualified ASPIC.Defeasible       as D (ArgumentGroup, Board, Literal,
 -- It is a polymorphic data type, means proposition could be of any customized type.
 
 data AS a =  AS
-    { asLanguage              :: D.LogicLanguage a
-    , asRules                 ::  D.Rules a
-    , asPreferenceMap         :: D.PreferenceMap
-    , asPathSelection         ::  PathSelection a
-    , asDefeaterSelection     ::  DefeaterSelection a
-    , asNegationFunction      ::   NegationFunction a
-    , asCheckNegationFunction ::   CheckNegationFunction a
-    , asOrderFunction         :: OrderFunction a
+    { asLanguage              ::    D.LogicLanguage a
+    , asRules                 ::    D.Rules a
+    , asPreferenceMap         ::    D.PreferenceMap
+    , asPathSelection         ::    PathSelection a
+    , asDefeaterSelection     ::    DefeaterSelection a
+    , asNegationFunction      ::    NegationFunction a
+    , asCheckNegationFunction ::    CheckNegationFunction a
+    , asOrderFunction         ::    OrderFunction a
     }
 
 -- | Has pattern
@@ -72,19 +72,19 @@ instance (Show a) => Show (AS a) where
         "length: " ++ show ((length . toList) asPreferenceMap)
 
 instance Has (D.LogicLanguage a) (AS a) where obtain  = asLanguage
-instance Has (D.LogicLanguage a) (D.LogicLanguage a) where obtain  = id 
+instance Has (D.LogicLanguage a) (D.LogicLanguage a) where obtain  = id
 
 instance Has (D.Rules a) (AS a) where obtain = asRules
-instance Has (D.Rules a) (D.Rules a) where obtain = id 
+instance Has (D.Rules a) (D.Rules a) where obtain = id
 
 instance Has D.PreferenceMap  (AS a) where obtain = asPreferenceMap
-instance Has D.PreferenceMap  D.PreferenceMap where obtain = id  
+instance Has D.PreferenceMap  D.PreferenceMap where obtain = id
 
 instance Has (PathSelection a) (AS a) where obtain = asPathSelection
-instance Has (PathSelection a) (PathSelection a)  where obtain = id  
+instance Has (PathSelection a) (PathSelection a)  where obtain = id
 
 instance Has (DefeaterSelection a) (AS a) where obtain = asDefeaterSelection
-instance Has (DefeaterSelection a) (DefeaterSelection a) where obtain = id  
+instance Has (DefeaterSelection a) (DefeaterSelection a) where obtain = id
 
 instance Has (NegationFunction a) (AS a) where obtain = asNegationFunction
 instance Has (NegationFunction a) (NegationFunction a) where obtain = id

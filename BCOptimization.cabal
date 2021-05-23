@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.33.0.
+-- This file has been generated from package.yaml by hpack version 0.34.4.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 4aa526de69c4f8660ed611405a257b04f6a0525f907bb06a06e5ef88e2dbb997
+-- hash: 219600349a9509f0edfef784cfcd9f0d4567c90e11374bc988b5c18f5e14fddc
 
 name:           BCOptimization
 version:        0.1.0.0
@@ -34,9 +34,13 @@ library
       ASPIC.Defeasible
       ASPIC.Ordering
       ASPIC.Planning
+      ASPIC.QuickCheckStyle
+      ASPIC.ServantStyle
       Dung.Argument
       Lib
       Parser.FileParser
+      Partial.Argument
+      Partial.Parser
       Run.DemoHelp
       Run.Env
       Toolkits.Common
@@ -44,7 +48,21 @@ library
       Paths_BCOptimization
   hs-source-dirs:
       src
-  default-extensions: ExistentialQuantification ConstraintKinds DeriveGeneric InstanceSigs KindSignatures LambdaCase OverloadedStrings RecordWildCards ScopedTypeVariables StandaloneDeriving TupleSections TypeApplications TypeOperators ViewPatterns
+  default-extensions:
+      ExistentialQuantification
+      ConstraintKinds
+      DeriveGeneric
+      InstanceSigs
+      KindSignatures
+      LambdaCase
+      OverloadedStrings
+      RecordWildCards
+      ScopedTypeVariables
+      StandaloneDeriving
+      TupleSections
+      TypeApplications
+      TypeOperators
+      ViewPatterns
   build-depends:
       QuickCheck
     , base >=4.7 && <5
