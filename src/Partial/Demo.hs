@@ -14,7 +14,7 @@ import qualified Partial.Planner as Planner
 rebut :: Planner.BinaryRelation 
 rebut = Planner.Binary check' construct'
     where 
-        check' _ a b = 
+        check' a b = 
             let 
                 aConc = Prop.conC a 
                 bConc = Prop.conC b 
@@ -30,16 +30,35 @@ rebut = Planner.Binary check' construct'
 undercut:: Planner.BinaryRelation 
 undercut = Planner.Binary check' construct' 
     where 
-        check' _ a b = undefined 
+        check' a b = undefined 
         construct' = undefined 
+
+expand :: Planner.BinaryRelation 
+expand = undefined 
+
+defeated :: Planner.BinaryRelation 
+defeated = undefined  
+
+actions :: Planner.Actions
+actions = [expand, defeated]
 
 {-
 2. Define Goal
--- | satisfy goal 1 and no goal 2 appears. this relies on the information of context 
--- which is not part of this implementation. 
+-}
+{-
+1. defeated action is necessary. 
+2. only 
 -}
 warranted :: Planner.Goal 
-warranted = undefined 
+warranted (Planner.Discard _)  = Nothing 
+warranted (Planner.Alone a) 
+    | null (Prop.comp a) = Just 0
+    | otherwise  = Just 1
+warranted (Planner.Expand a rts)
+    | (Planner.Discard _) `elem` rts = Nothing 
+    | 
+    let 
+        r1 = and $ (Planner.check defeated) a <$> 
 
 unwarranted :: Planner.Goal 
 unwarranted = undefined 
@@ -55,7 +74,9 @@ tasks:
 -}
 
 aStar :: Planner.Planner 
-aStar = undefined
+aStar queryA actions goals = 
+    let fringe = []
+        
 -- | not necessarily all goals reaches Nothing 
 --  how to deal with this ? 
 -- set fringe a set of relational trees. 
@@ -68,10 +89,9 @@ aStar = undefined
 query :: A.Argument 
 query = undefined 
 
-actions :: Planner.Actions
-actions = [undercut, rebut]
 
-schedule :: Planner.Schedule 
+
+schedule :: Planner.Aims
 schedule = Map.fromList [(1, warranted),(2,unwarranted)]
 
 queryResult :: Maybe (Int, Planner.RelationalTree) 

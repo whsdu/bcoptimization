@@ -9,10 +9,13 @@ import qualified Partial.Properties as P
 1. Binary relations == Actions
 -}
 data BinaryRelation = Binary 
-                { check :: A.Context -> A.Argument -> A.Argument -> Bool
+                { check ::  A.Argument -> A.Argument -> Bool
                 , construct :: A.Context -> A.Argument -> [A.Argument]
                 }
+
+-- | these two definitions are not necessary. 
 type Actions = [BinaryRelation]
+-- type Actions = Map.HashMap Int BinaryRelation
 
 {-
 2. Represents the State of actions 
@@ -43,7 +46,7 @@ instance Eq RelationalTree where
 3. Heuristic function 
 under estimate the distance ==> admissible 
 -}
-type Goal = Actions -> RelationalTree -> Maybe Int 
+type Goal = RelationalTree -> Maybe Int 
 
 {-
 3.1 
@@ -56,8 +59,8 @@ type Goals = [Goal]
 {-
 4. Plan
 -}
-type Schedule = Map.HashMap Int Goal
-type Planner = A.Argument -> Actions -> Schedule -> Maybe (Int, RelationalTree)
+type Aims = Map.HashMap Int Goal
+type Planner = A.Context -> A.Argument -> Actions -> Aims -> Maybe (Int, RelationalTree)
 
 
 {-
