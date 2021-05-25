@@ -23,15 +23,27 @@ type Actions = [BinaryRelation]
 -- may be this ? : | Expand A.Argument  [RelationalTree]
 -- Expand mean some kind of relation. 
 data RelationalTree  = 
-                    Disard () 
+                    Discard () 
                   | Alone A.Argument 
-                  | Expand A.Argument  RelationalTree
+                  | Expand A.Argument  [RelationalTree]
+
+instance Eq RelationalTree where 
+  Discard _ == Discard _ = True 
+  Alone a1 == Alone a2 = a1 == a2 
+  (Expand a aTree) == (Expand b bTree) = 
+            a == b && aTree == bTree 
+  Discard _ == Alone _ = False 
+  Discard _ == Expand _ _ = False 
+  Alone _ == Discard _ = False 
+  Alone _ == Expand _ _ = False 
+  Expand _ _ == Discard _ = False 
+  Expand _ _ == Alone _ = False 
 
 {-
 3. Heuristic function 
 under estimate the distance ==> admissible 
 -}
-type Goal = RelationalTree -> Maybe Int 
+type Goal = Actions -> RelationalTree -> Maybe Int 
 
 {-
 3.1 
@@ -46,3 +58,8 @@ type Goals = [Goal]
 -}
 type Schedule = Map.HashMap Int Goal
 type Planner = A.Argument -> Actions -> Schedule -> Maybe (Int, RelationalTree)
+
+
+{-
+if the goal interested in the action, then it must be included sooner or later
+-}

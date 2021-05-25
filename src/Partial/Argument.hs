@@ -52,7 +52,7 @@ type Rules = [Rule]
 type R'preference = Map.HashMap Rule Int  
 
 {--}
-data Context = Context {rules :: Rules , rulePrefer :: R'preference, propPrefer :: P'preference}
+data Context = Context {rules :: Rules , rulePrefer :: R'preference, propPrefer :: P'preference, space :: [Argument]}
 
 {--}
 data Argument  where 

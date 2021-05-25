@@ -85,6 +85,9 @@ queryResult =  aStar query actions schedule
     for example:  a state is possible computed with less computation
     but has seemingly large heuristic thus be omitted. (multi goals)
 we do not interested in the path, instead we interested in the goal states.
+
+the actual computation could be really expansive, focus on the plan . 
+this foucs on the result with less expansive computation. 
 -}
 
 {-
